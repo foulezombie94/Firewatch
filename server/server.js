@@ -407,7 +407,7 @@ async function fetchAdsbRegion(url, timeoutMs = 6000) {
 
 async function fetchOpenSkyFlights() {
   try {
-    // 12-zone full planet Earth grid matrix: 100% total worldwide coverage
+    // 13-zone full planet Earth grid matrix: 100% total worldwide coverage (including SE Asia)
     const regionUrls = [
       'https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/3500',      // Zone 1: Europe West & Central
       'https://api.adsb.lol/v2/lat/55.75/lon/37.61/dist/3500',     // Zone 2: Eastern Europe & Eurasia
@@ -418,9 +418,10 @@ async function fetchOpenSkyFlights() {
       'https://api.adsb.lol/v2/lat/-34.60/lon/-58.38/dist/3500',  // Zone 7: South America South & Argentina/Chile
       'https://api.adsb.lol/v2/lat/15.0/lon/15.0/dist/3500',       // Zone 8: North & West Africa
       'https://api.adsb.lol/v2/lat/-1.29/lon/36.82/dist/3500',    // Zone 9: East & South Africa
-      'https://api.adsb.lol/v2/lat/20.59/lon/78.96/dist/3500',    // Zone 10: Middle East, India & SE Asia
+      'https://api.adsb.lol/v2/lat/20.59/lon/78.96/dist/3500',    // Zone 10: Middle East & India / South Asia
       'https://api.adsb.lol/v2/lat/35.67/lon/139.65/dist/3500',   // Zone 11: East Asia, China & Japan
-      'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500'   // Zone 12: Australia, NZ & Oceania
+      'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500',  // Zone 12: Australia, NZ & Oceania
+      'https://api.adsb.lol/v2/lat/1.35/lon/103.82/dist/3500'      // Zone 13: Southeast Asia (Singapore, Bangkok, Jakarta, Manila, Vietnam, Malaysia, Indonesia, Philippines)
     ];
 
     const results = await Promise.all(regionUrls.map(url => fetchAdsbRegion(url, 6000)));
