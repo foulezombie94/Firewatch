@@ -120,10 +120,11 @@ export const Map: React.FC<MapProps> = ({
     feature: any;
   }>>(new globalThis.Map());
 
-  // Synchronize flight dataset into dead-reckoning animation state
+  // Synchronize flight dataset into dead-reckoning animation state (Zero-Rollback Smooth Transition)
   useEffect(() => {
     if (!flightsGeoJson || !flightsGeoJson.features) return;
     const now = Date.now();
+    const oldMap = flightStateRef.current;
     const newMap = new globalThis.Map();
 
     for (const f of flightsGeoJson.features) {
@@ -132,14 +133,39 @@ export const Map: React.FC<MapProps> = ({
       const speed = f.properties?.velocity_kmh || 500;
       const heading = f.properties?.heading || 0;
 
-      newMap.set(icao, {
-        startLon: coords[0],
-        startLat: coords[1],
-        heading,
-        velocityKmh: speed,
-        updateTime: now,
-        feature: f
-      });
+      const existing = oldMap.get(icao);
+
+      if (existing) {
+        // Compute exact current position on screen to anchor new trajectory seamlessly with ZERO rollback
+        const elapsedSec = Math.min((now - existing.updateTime) / 1000, 25);
+        const distKm = (existing.velocityKmh / 3600) * elapsedSec;
+        const headingRad = (existing.heading * Math.PI) / 180;
+
+        const dLat = (distKm * Math.cos(headingRad)) / 111.12;
+        const cosLat = Math.cos((existing.startLat * Math.PI) / 180);
+        const dLon = (distKm * Math.sin(headingRad)) / (111.12 * (Math.abs(cosLat) < 0.01 ? 1 : cosLat));
+
+        const curLon = existing.startLon + dLon;
+        const curLat = existing.startLat + dLat;
+
+        newMap.set(icao, {
+          startLon: curLon,
+          startLat: curLat,
+          heading,
+          velocityKmh: speed,
+          updateTime: now,
+          feature: f
+        });
+      } else {
+        newMap.set(icao, {
+          startLon: coords[0],
+          startLat: coords[1],
+          heading,
+          velocityKmh: speed,
+          updateTime: now,
+          feature: f
+        });
+      }
     }
 
     flightStateRef.current = newMap;
