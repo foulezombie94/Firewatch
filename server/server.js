@@ -360,7 +360,7 @@ async function fetchUsgsEarthquakes() {
 
 async function fetchOpenSkyFlights() {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
     const statesRes = await fetch('https://opensky-network.org/api/states/all', {
