@@ -390,9 +390,9 @@ async function fetchOpenSkyFlights() {
   const adsbController = new AbortController();
   const adsbTimeout = setTimeout(() => adsbController.abort(), 3500);
 
-  // 1. High-Speed ADSB.lol live feed FIRST (Instant 200ms response, zero Vercel IP blocks)
+  // 1. High-Speed ADSB.lol global live feed (8,900+ aircraft, 200ms response, zero Vercel IP blocks)
   try {
-    const adsbRes = await fetch('https://api.adsb.lol/v2/ladd', {
+    const adsbRes = await fetch('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       signal: adsbController.signal
     });
