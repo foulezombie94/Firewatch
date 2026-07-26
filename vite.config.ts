@@ -13,4 +13,14 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mapbox: ['mapbox-gl'],
+          vendor: ['react', 'react-dom', 'lucide-react'],
+        },
+      },
+    },
+  },
 });

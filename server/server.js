@@ -33,11 +33,17 @@ if (!MAPBOX_TOKEN) {
 const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 
-const CACHE_DIR = path.join(__dirname, 'cache');
+const CACHE_DIR = process.env.VERCEL ? path.join('/tmp', 'cache') : path.join(__dirname, 'cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'fires_cache.json');
 const QUAKES_CACHE_FILE = path.join(CACHE_DIR, 'quakes_cache.json');
 const FLIGHTS_CACHE_FILE = path.join(CACHE_DIR, 'flights_cache.json');
 const GLOBAL_AIRPORTS_FILE = path.join(CACHE_DIR, 'global_airports.json');
+
+// Vercel CDN Edge Cache Control (Zero Cost Invocations)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+  next();
+});
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const TWO_MINUTES_MS = 2 * 60 * 1000;
