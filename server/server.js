@@ -387,124 +387,121 @@ function saveAndCacheFlights(flightFeatures) {
 }
 
 async function fetchOpenSkyFlights() {
-  const controllerADSB = new AbortController();
-  const timeoutADSB = setTimeout(() => controllerADSB.abort(), 3500);
+  const adsbController = new AbortController();
+  const adsbTimeout = setTimeout(() => adsbController.abort(), 3500);
 
-  const controllerOpenSky = new AbortController();
-  const timeoutOpenSky = setTimeout(() => controllerOpenSky.abort(), 3500);
-
+  // 1. High-Speed ADSB.lol live feed FIRST (Instant 200ms response, zero Vercel IP blocks)
   try {
-    // Concurrent parallel fetch: ADSB.lol (200ms response, zero Vercel IP blocks) & OpenSky
-    const [adsbResult, openSkyResult] = await Promise.allSettled([
-      fetch('https://api.adsb.lol/v2/ladd', {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: controllerADSB.signal
-      }),
-      fetch('https://opensky-network.org/api/states/all', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
-        signal: controllerOpenSky.signal
-      })
-    ]);
+    const adsbRes = await fetch('https://api.adsb.lol/v2/ladd', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: adsbController.signal
+    });
+    clearTimeout(adsbTimeout);
 
-    clearTimeout(timeoutADSB);
-    clearTimeout(timeoutOpenSky);
+    if (adsbRes.ok) {
+      const adsbData = await adsbRes.json();
+      const acList = adsbData.ac || [];
+      const flightFeatures = [];
 
-    let flightFeatures = [];
+      for (const a of acList) {
+        if (a.lat === undefined || a.lon === undefined) continue;
+        const callsign = (a.flight || a.r || 'N/A').trim();
+        const altFt = typeof a.alt_baro === 'number' ? a.alt_baro : 10000;
+        const altM = Math.round(altFt / 3.28084);
+        const heading = Math.round(a.track || 0);
+        const originCountry = a.t ? `Avion (${a.t})` : 'International';
 
-    // 1. Try parsing OpenSky if it responded in time
-    if (openSkyResult.status === 'fulfilled' && openSkyResult.value && openSkyResult.value.ok) {
-      try {
-        const data = await openSkyResult.value.json();
-        const rawStates = data.states || [];
-        for (const s of rawStates) {
-          const lon = s[5];
-          const lat = s[6];
-          if (lon === null || lat === null || isNaN(lon) || isNaN(lat)) continue;
-
-          const originCountry = s[2] || 'International';
-          flightFeatures.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [lon, lat] },
-            properties: {
-              icao24: s[0],
-              callsign: (s[1] || 'N/A').trim(),
-              origin_country: originCountry,
-              altitude_m: Math.round(s[7] || s[13] || 0),
-              altitude_ft: Math.round((s[7] || s[13] || 0) * 3.28084),
-              velocity_kmh: Math.round((s[9] || 0) * 3.6),
-              heading: Math.round(s[10] || 0),
-              vertical_rate: s[11] || 0,
-              on_ground: s[8] || false,
-              squawk: s[14] || 'N/A',
-              dep_iata: 'DEP',
-              dep_name: `Aéroport (${originCountry})`,
-              dep_city: originCountry,
-              dep_country: originCountry,
-              arr_iata: 'ARR',
-              arr_name: 'Trajectoire Internationale',
-              arr_city: 'En Vol',
-              arr_country: 'International'
-            }
-          });
-        }
-        if (flightFeatures.length > 0) {
-          logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
-          return saveAndCacheFlights(flightFeatures);
-        }
-      } catch (e) {
-        logger.debug({ err: e.message }, 'Failed parsing OpenSky payload');
+        flightFeatures.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [a.lon, a.lat] },
+          properties: {
+            icao24: a.hex || 'N/A',
+            callsign: callsign,
+            origin_country: originCountry,
+            altitude_m: altM,
+            altitude_ft: altFt,
+            velocity_kmh: Math.round((a.gs || 0) * 1.852),
+            heading: heading,
+            vertical_rate: 0,
+            on_ground: false,
+            squawk: '7000',
+            dep_iata: 'DEP',
+            dep_name: `Aéroport (${originCountry})`,
+            dep_city: originCountry,
+            dep_country: originCountry,
+            arr_iata: 'ARR',
+            arr_name: 'Trajectoire Internationale',
+            arr_city: 'En Vol',
+            arr_country: 'International'
+          }
+        });
       }
-    }
 
-    // 2. High-speed ADSB.lol live feed (Instant 200ms response, zero Vercel IP blocks)
-    if (adsbResult.status === 'fulfilled' && adsbResult.value && adsbResult.value.ok) {
-      try {
-        const adsbData = await adsbResult.value.json();
-        const acList = adsbData.ac || [];
-
-        for (const a of acList) {
-          if (a.lat === undefined || a.lon === undefined) continue;
-          const callsign = (a.flight || a.r || 'N/A').trim();
-          const altFt = typeof a.alt_baro === 'number' ? a.alt_baro : 10000;
-          const altM = Math.round(altFt / 3.28084);
-          const heading = Math.round(a.track || 0);
-          const originCountry = a.t ? `Avion (${a.t})` : 'International';
-
-          flightFeatures.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [a.lon, a.lat] },
-            properties: {
-              icao24: a.hex || 'N/A',
-              callsign: callsign,
-              origin_country: originCountry,
-              altitude_m: altM,
-              altitude_ft: altFt,
-              velocity_kmh: Math.round((a.gs || 0) * 1.852),
-              heading: heading,
-              vertical_rate: 0,
-              on_ground: false,
-              squawk: '7000',
-              dep_iata: 'DEP',
-              dep_name: `Aéroport (${originCountry})`,
-              dep_city: originCountry,
-              dep_country: originCountry,
-              arr_iata: 'ARR',
-              arr_name: 'Trajectoire Internationale',
-              arr_city: 'En Vol',
-              arr_country: 'International'
-            }
-          });
-        }
-
-        if (flightFeatures.length > 0) {
-          logger.info({ count: flightFeatures.length }, '✈️ Live ADSB feed synced active aircraft to cache (200ms response).');
-          return saveAndCacheFlights(flightFeatures);
-        }
-      } catch (e) {
-        logger.debug({ err: e.message }, 'Failed parsing ADSB payload');
+      if (flightFeatures.length > 0) {
+        logger.info({ count: flightFeatures.length }, '✈️ Live ADSB feed synced active aircraft to cache (200ms response).');
+        return saveAndCacheFlights(flightFeatures);
       }
     }
   } catch (err) {
+    clearTimeout(adsbTimeout);
+    logger.debug({ err: err.message }, 'ADSB.lol fetch failed or timed out, trying OpenSky fallback...');
+  }
+
+  // 2. OpenSky Network API (Secondary fallback if ADSB.lol is unavailable)
+  const openSkyController = new AbortController();
+  const openSkyTimeout = setTimeout(() => openSkyController.abort(), 4000);
+
+  try {
+    const statesRes = await fetch('https://opensky-network.org/api/states/all', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+      signal: openSkyController.signal
+    });
+    clearTimeout(openSkyTimeout);
+
+    if (statesRes.ok) {
+      const data = await statesRes.json();
+      const rawStates = data.states || [];
+      const flightFeatures = [];
+
+      for (const s of rawStates) {
+        const lon = s[5];
+        const lat = s[6];
+        if (lon === null || lat === null || isNaN(lon) || isNaN(lat)) continue;
+
+        const originCountry = s[2] || 'International';
+        flightFeatures.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lon, lat] },
+          properties: {
+            icao24: s[0],
+            callsign: (s[1] || 'N/A').trim(),
+            origin_country: originCountry,
+            altitude_m: Math.round(s[7] || s[13] || 0),
+            altitude_ft: Math.round((s[7] || s[13] || 0) * 3.28084),
+            velocity_kmh: Math.round((s[9] || 0) * 3.6),
+            heading: Math.round(s[10] || 0),
+            vertical_rate: s[11] || 0,
+            on_ground: s[8] || false,
+            squawk: s[14] || 'N/A',
+            dep_iata: 'DEP',
+            dep_name: `Aéroport (${originCountry})`,
+            dep_city: originCountry,
+            dep_country: originCountry,
+            arr_iata: 'ARR',
+            arr_name: 'Trajectoire Internationale',
+            arr_city: 'En Vol',
+            arr_country: 'International'
+          }
+        });
+      }
+
+      if (flightFeatures.length > 0) {
+        logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
+        return saveAndCacheFlights(flightFeatures);
+      }
+    }
+  } catch (err) {
+    clearTimeout(openSkyTimeout);
     logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception processing flights');
   }
 
