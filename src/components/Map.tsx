@@ -3,6 +3,11 @@ import mapboxgl from 'mapbox-gl';
 import { FireGeoJSON, EarthquakeGeoJSON, FlightGeoJSON, MapStyleKey, MapProjectionKey, LayerModeKey, FireProperties, FireFeature, FlightFeature, CameraPreset } from '../types';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
+try {
+  if ((mapboxgl as any).config) {
+    (mapboxgl as any).config.REGISTER_SERVICE_WORKER = false;
+  }
+} catch (e) {}
 
 interface MapProps {
   geoJson: FireGeoJSON | null;
@@ -288,6 +293,13 @@ export const Map: React.FC<MapProps> = ({
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
+
+    // Suppress browser Cache API tile registration errors (Cache.put network error)
+    try {
+      if ((mapboxgl as any).config) {
+        (mapboxgl as any).config.REGISTER_SERVICE_WORKER = false;
+      }
+    } catch (e) {}
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
