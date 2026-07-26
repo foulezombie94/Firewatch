@@ -440,12 +440,14 @@ async function fetchOpenSkyFlights() {
         });
       }
 
-      logger.info({ count: flightFeatures.length }, 'OpenSky REST API active aircraft synced to cache.');
+      logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
       return geoJson;
+    } else {
+      logger.error({ status: statesRes.status, statusText: statesRes.statusText }, '❌ [Vercel Log Error] OpenSky API HTTP status not OK');
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    logger.error({ err: err.message }, 'Error fetching OpenSky flights');
+    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception fetching OpenSky flights');
   }
 
   return flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
@@ -655,10 +657,20 @@ app.get('/api/flights', async (req, res) => {
     if (!flightsMemoryCache.geoJson || (Date.now() - flightsMemoryCache.lastUpdated > TWO_MINUTES_MS)) {
       await fetchOpenSkyFlights();
     }
-    res.json(flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] });
+    const data = flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
+    const count = data.features ? data.features.length : 0;
+
+    if (count === 0) {
+      logger.warn({ endpoint: '/api/flights', count: 0 }, '⚠️ [Vercel Console Log] /api/flights - 0 avions en vol renvoyés au client (couche aérienne vide)');
+    } else {
+      logger.info({ endpoint: '/api/flights', count }, '✅ [Vercel Console Log] /api/flights - Avions transmis avec succès');
+    }
+
+    res.json(data);
   } catch (err) {
-    logger.error({ err: err.message }, 'Failed to fetch OpenSky flights');
-    res.status(500).json({ error: 'Failed to fetch OpenSky flights', message: err.message });
+    logger.error({ endpoint: '/api/flights', err: err.message, stack: err.stack }, '❌ [Vercel Console Error] Échec du traitement /api/flights');
+    const errorMsg = process.env.NODE_ENV === 'production' ? undefined : err.message;
+    res.status(500).json({ error: 'Failed to fetch OpenSky flights', message: errorMsg });
   }
 });
 
