@@ -798,19 +798,17 @@ app.get('/api/geocode', async (req, res) => {
 
 app.get('/api/flights', async (req, res) => {
   try {
-    const FIFTEEN_SECONDS_MS = 15000;
-    if (!flightsMemoryCache.geoJson || (Date.now() - flightsMemoryCache.lastUpdated > FIFTEEN_SECONDS_MS)) {
-      await fetchOpenSkyFlights();
-    }
-    const data = flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
+    // 100% Direct Live Fetch (No Server Cache, Zero Rate Limits on ADSB)
+    const data = await fetchOpenSkyFlights();
     const count = data.features ? data.features.length : 0;
 
     if (count === 0) {
       logger.warn({ endpoint: '/api/flights', count: 0 }, '⚠️ [Vercel Console Log] /api/flights - 0 avions en vol renvoyés au client (couche aérienne vide)');
     } else {
-      logger.info({ endpoint: '/api/flights', count }, '✅ [Vercel Console Log] /api/flights - Avions transmis avec succès');
+      logger.info({ endpoint: '/api/flights', count }, '✅ [Vercel Console Log] /api/flights - Avions transmis en direct sans cache');
     }
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(data);
   } catch (err) {
     logger.error({ endpoint: '/api/flights', err: err.message, stack: err.stack }, '❌ [Vercel Console Error] Échec du traitement /api/flights');
