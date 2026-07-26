@@ -162,17 +162,22 @@ export const Legend: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2.5 text-slate-300 text-[10px] bg-[#0e1014] p-2.5 rounded-lg border border-[#21252d]">
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shrink-0">
-                    <Plane className="w-4 h-4 rotate-45 animate-pulse" />
+                <div className="grid grid-cols-2 gap-1.5 font-mono text-[9px]">
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#0e1014] border border-[#21252d] text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8] shadow-sm shrink-0" />
+                    <span className="font-bold truncate text-cyan-300">✈️ Vol Commercial</span>
                   </div>
-                  <div className="text-[10px] text-slate-300 leading-tight space-y-0.5">
-                    <div className="font-bold text-white flex items-center gap-1">
-                      <Compass className="w-3 h-3 text-emerald-400" /> Orientation par Cap Réel
-                    </div>
-                    <div className="text-[9px] text-slate-400">
-                      Chaque icône tourne en direct selon l'azimut GPS (0° à 360°).
-                    </div>
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#0e1014] border border-[#21252d] text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shadow-sm shrink-0" />
+                    <span className="font-bold truncate text-red-400">🎖️ Vol Militaire</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#0e1014] border border-[#21252d] text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#c084fc] shadow-sm shrink-0" />
+                    <span className="font-bold truncate text-purple-300">🛩️ Jet Privé</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#0e1014] border border-[#21252d] text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#fbbf24] shadow-sm shrink-0" />
+                    <span className="font-bold truncate text-amber-300">🚁 Hélico / Secours</span>
                   </div>
                 </div>
               </div>

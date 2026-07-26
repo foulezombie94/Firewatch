@@ -405,9 +405,49 @@ async function fetchAdsbRegion(url, timeoutMs = 6000) {
   return [];
 }
 
+function getAircraftCategory(a) {
+  const callsign = (a.flight || a.r || '').trim().toUpperCase();
+  const type = (a.t || '').toUpperCase();
+  const dbFlags = a.dbFlags || 0;
+
+  // 1. Military (from /v2/mil endpoint OR dbFlags=1 OR military callsign/type prefix)
+  if (a.isMilitary || dbFlags === 1 || callsign.startsWith('RCH') || callsign.startsWith('NATO') || callsign.startsWith('NAVY') || callsign.startsWith('FAF') || callsign.startsWith('BAF') || callsign.startsWith('IAM') || callsign.startsWith('CNV') || type === 'F16' || type === 'F18' || type === 'F35' || type === 'C130' || type === 'C17' || type === 'A400' || type === 'E3TF' || type === 'KC135') {
+    return {
+      category: 'military',
+      flight_type: 'Militaire 🎖️',
+      color: '#ef4444' // Red
+    };
+  }
+
+  // 2. Helicopter / Medical / Emergency Rescue
+  if (type.startsWith('EC') || type.startsWith('H60') || type.startsWith('A109') || type.startsWith('AW1') || type.startsWith('B06') || type.startsWith('AS50') || type.startsWith('R44') || callsign.startsWith('DRF') || callsign.startsWith('REGA') || callsign.startsWith('SAMU') || callsign.startsWith('MED') || callsign.startsWith('DRAGON')) {
+    return {
+      category: 'emergency',
+      flight_type: 'Hélico / Secours 🚁',
+      color: '#f59e0b' // Amber / Orange
+    };
+  }
+
+  // 3. Private Jet / Business Aviation
+  if (type.startsWith('GLF') || type.startsWith('CL6') || type.startsWith('E55') || type.startsWith('FA7') || type.startsWith('C56') || type.startsWith('BE20') || type.startsWith('E50') || callsign.startsWith('N1') || callsign.startsWith('LX-') || callsign.startsWith('OE-') || callsign.startsWith('CS-')) {
+    return {
+      category: 'private',
+      flight_type: 'Jet Privé 🛩️',
+      color: '#a855f7' // Purple
+    };
+  }
+
+  // 4. Commercial Flight (Default)
+  return {
+    category: 'commercial',
+    flight_type: 'Vol Commercial ✈️',
+    color: '#38bdf8' // Cyan / Blue
+  };
+}
+
 async function fetchOpenSkyFlights() {
   try {
-    // 13-zone full planet Earth grid matrix: 100% total worldwide coverage (including SE Asia)
+    // 13-zone full planet Earth grid matrix + Military feed
     const regionUrls = [
       'https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/3500',      // Zone 1: Europe West & Central
       'https://api.adsb.lol/v2/lat/55.75/lon/37.61/dist/3500',     // Zone 2: Eastern Europe & Eurasia
@@ -421,12 +461,23 @@ async function fetchOpenSkyFlights() {
       'https://api.adsb.lol/v2/lat/20.59/lon/78.96/dist/3500',    // Zone 10: Middle East & India / South Asia
       'https://api.adsb.lol/v2/lat/35.67/lon/139.65/dist/3500',   // Zone 11: East Asia, China & Japan
       'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500',  // Zone 12: Australia, NZ & Oceania
-      'https://api.adsb.lol/v2/lat/1.35/lon/103.82/dist/3500'      // Zone 13: Southeast Asia (Singapore, Bangkok, Jakarta, Manila, Vietnam, Malaysia, Indonesia, Philippines)
+      'https://api.adsb.lol/v2/lat/1.35/lon/103.82/dist/3500'      // Zone 13: Southeast Asia
     ];
 
-    const results = await Promise.all(regionUrls.map(url => fetchAdsbRegion(url, 6000)));
+    const [milList, ...results] = await Promise.all([
+      fetchAdsbRegion('https://api.adsb.lol/v2/mil', 6000),
+      ...regionUrls.map(url => fetchAdsbRegion(url, 6000))
+    ]);
 
     const acMap = new Map();
+
+    // Mark military planes explicitly
+    for (const a of milList) {
+      if (a.hex && a.lat !== undefined && a.lon !== undefined) {
+        acMap.set(a.hex, { ...a, isMilitary: true });
+      }
+    }
+
     for (const list of results) {
       for (const a of list) {
         if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) {
@@ -444,6 +495,8 @@ async function fetchOpenSkyFlights() {
         const heading = Math.round(a.track || 0);
         const originCountry = a.t ? `Avion (${a.t})` : 'International';
 
+        const catInfo = getAircraftCategory(a);
+
         flightFeatures.push({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [a.lon, a.lat] },
@@ -458,6 +511,11 @@ async function fetchOpenSkyFlights() {
             vertical_rate: 0,
             on_ground: false,
             squawk: '7000',
+            category: catInfo.category,
+            flight_type: catInfo.flight_type,
+            color: catInfo.color,
+            model_type: a.t || 'N/A',
+            registration: a.r || 'N/A',
             dep_iata: 'DEP',
             dep_name: `Aéroport (${originCountry})`,
             dep_city: originCountry,

@@ -24,8 +24,8 @@ const STYLE_URLS: Record<MapStyleKey, string> = {
   outdoors: 'mapbox://styles/mapbox/outdoors-v12',
 };
 
-// Synchronously generate high-resolution emerald airplane vector icon for Mapbox
-const createAirplaneImageData = (): ImageData => {
+// Synchronously generate high-resolution category-colored airplane vector icons for Mapbox
+const createAirplaneImageData = (fillColor: string = '#38bdf8', glowColor: string = '#0284c7'): ImageData => {
   const canvas = document.createElement('canvas');
   canvas.width = 48;
   canvas.height = 48;
@@ -37,11 +37,11 @@ const createAirplaneImageData = (): ImageData => {
   ctx.translate(24, 24);
   
   // Neon glow background
-  ctx.shadowColor = '#10b981';
+  ctx.shadowColor = glowColor;
   ctx.shadowBlur = 12;
 
-  ctx.fillStyle = '#34d399';
-  ctx.strokeStyle = '#022c22';
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = '#020617';
   ctx.lineWidth = 2.5;
   ctx.lineJoin = 'round';
 
@@ -67,9 +67,19 @@ const isMapStyleReady = (map: mapboxgl.Map | null): boolean => {
 const ensureAirplaneImage = (map: mapboxgl.Map) => {
   if (!map || !isMapStyleReady(map)) return;
   try {
-    if (!map.hasImage('airplane-icon')) {
-      const imgData = createAirplaneImageData();
-      map.addImage('airplane-icon', { width: 48, height: 48, data: imgData.data }, { pixelRatio: 2 });
+    const icons = [
+      { id: 'airplane-icon', fill: '#38bdf8', glow: '#0284c7' },           // Default Cyan
+      { id: 'airplane-icon-commercial', fill: '#38bdf8', glow: '#0284c7' },// Cyan Blue ✈️
+      { id: 'airplane-icon-military', fill: '#ef4444', glow: '#dc2626' },  // Neon Red 🎖️
+      { id: 'airplane-icon-private', fill: '#c084fc', glow: '#a855f7' },   // Purple 🛩️
+      { id: 'airplane-icon-emergency', fill: '#fbbf24', glow: '#f59e0b' }  // Amber Orange 🚁
+    ];
+
+    for (const ico of icons) {
+      if (!map.hasImage(ico.id)) {
+        const imgData = createAirplaneImageData(ico.fill, ico.glow);
+        map.addImage(ico.id, { width: 48, height: 48, data: imgData.data }, { pixelRatio: 2 });
+      }
     }
   } catch (e) {}
 };
@@ -621,7 +631,14 @@ export const Map: React.FC<MapProps> = ({
             source: 'flights-source',
             layout: {
               visibility: showFlights ? 'visible' : 'none',
-              'icon-image': 'airplane-icon',
+              'icon-image': [
+                'match',
+                ['coalesce', ['get', 'category'], 'commercial'],
+                'military', 'airplane-icon-military',
+                'private', 'airplane-icon-private',
+                'emergency', 'airplane-icon-emergency',
+                'airplane-icon-commercial'
+              ],
               'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.45, 5, 0.7, 10, 1.0],
               'icon-rotate': ['coalesce', ['get', 'heading'], 0],
               'icon-rotation-alignment': 'map',
