@@ -28,10 +28,24 @@ function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 export const App: React.FC = () => {
-  const [rawFiresData, setRawFiresData] = useState<FireGeoJSON | null>(null);
-  const [quakesGeoJson, setQuakesGeoJson] = useState<EarthquakeGeoJSON | null>(null);
+  const [rawFiresData, setRawFiresData] = useState<FireGeoJSON | null>(() => {
+    try {
+      const saved = localStorage.getItem('firewatch_cached_fires');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [quakesGeoJson, setQuakesGeoJson] = useState<EarthquakeGeoJSON | null>(() => {
+    try {
+      const saved = localStorage.getItem('firewatch_cached_quakes');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [flightsGeoJson, setFlightsGeoJson] = useState<FlightGeoJSON | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !localStorage.getItem('firewatch_cached_fires'));
   const [error, setError] = useState<string | null>(null);
   const [nextUpdateInSeconds, setNextUpdateInSeconds] = useState<number>(7200);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('satellite'); // Default style is Satellite HD
@@ -70,7 +84,6 @@ export const App: React.FC = () => {
 
   // Initial & progressive background fetch — render data on map instantly as each API responds!
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
     setError(null);
 
     setServiceStatus({ fires: 'loading', earthquakes: 'loading', flights: 'loading' });
@@ -81,6 +94,9 @@ export const App: React.FC = () => {
         if (!res.ok) throw new Error('Fires error');
         const data: FireGeoJSON = await res.json();
         setRawFiresData(data);
+        try {
+          localStorage.setItem('firewatch_cached_fires', JSON.stringify(data));
+        } catch (e) {}
         if (data.metadata?.next_update_in_seconds) {
           setNextUpdateInSeconds(data.metadata.next_update_in_seconds);
         }
@@ -100,6 +116,9 @@ export const App: React.FC = () => {
         if (!res.ok) throw new Error('Quakes error');
         const qData: EarthquakeGeoJSON = await res.json();
         setQuakesGeoJson(qData);
+        try {
+          localStorage.setItem('firewatch_cached_quakes', JSON.stringify(qData));
+        } catch (e) {}
         setServiceStatus(prev => ({ ...prev, earthquakes: 'ok' }));
       })
       .catch(() => {
