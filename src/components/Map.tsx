@@ -157,10 +157,28 @@ export const Map: React.FC<MapProps> = ({
           const now = Date.now();
           const animatedFeatures: any[] = [];
 
+          // Get visible screen bounds to ONLY animate planes in viewport (+ margin)
+          let bounds: mapboxgl.LngLatBounds | null = null;
+          try {
+            bounds = map.getBounds();
+          } catch (e) {}
+
           for (const state of flightStateRef.current.values()) {
             const elapsedSec = (now - state.updateTime) / 1000;
-            // Cap extrapolation to max 25 seconds to prevent overshooting
             const clampedSec = Math.min(elapsedSec, 25);
+
+            // Viewport culling: skip heavy math for planes far off-screen
+            if (bounds) {
+              const west = bounds.getWest() - 5;
+              const east = bounds.getEast() + 5;
+              const south = bounds.getSouth() - 5;
+              const north = bounds.getNorth() + 5;
+
+              if (state.startLon < west || state.startLon > east || state.startLat < south || state.startLat > north) {
+                animatedFeatures.push(state.feature);
+                continue;
+              }
+            }
 
             // Distance in km = (speed in km/h / 3600) * seconds
             const distKm = (state.velocityKmh / 3600) * clampedSec;
@@ -171,14 +189,11 @@ export const Map: React.FC<MapProps> = ({
             const cosLat = Math.cos((state.startLat * Math.PI) / 180);
             const dLon = (distKm * Math.sin(headingRad)) / (111.12 * (Math.abs(cosLat) < 0.01 ? 1 : cosLat));
 
-            const curLon = state.startLon + dLon;
-            const curLat = state.startLat + dLat;
-
             animatedFeatures.push({
               ...state.feature,
               geometry: {
                 type: 'Point',
-                coordinates: [curLon, curLat]
+                coordinates: [state.startLon + dLon, state.startLat + dLat]
               }
             });
           }
