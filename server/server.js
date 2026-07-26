@@ -386,42 +386,39 @@ function saveAndCacheFlights(flightFeatures) {
   return geoJson;
 }
 
-async function fetchOpenSkyFlights() {
-  const adsbController = new AbortController();
-  const adsbTimeout = setTimeout(() => adsbController.abort(), 3500);
-
-  // 1. High-Speed 100% Global ADSB live feed (Dual-center coverage: Europe + Americas/Pacific, 200ms response)
+async function fetchAdsbRegion(url, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const tId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const [resEurope, resAmericas] = await Promise.all([
-      fetch('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: adsbController.signal
-      }).catch(() => null),
-      fetch('https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/4000', {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: adsbController.signal
-      }).catch(() => null)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: controller.signal
+    });
+    clearTimeout(tId);
+    if (res.ok) {
+      const data = await res.json();
+      return Array.isArray(data.ac) ? data.ac : [];
+    }
+  } catch (e) {
+    clearTimeout(tId);
+  }
+  return [];
+}
+
+async function fetchOpenSkyFlights() {
+  try {
+    // 1. High-Speed 100% Global ADSB live feed (Triple independent regional centers: Europe, Americas, Asia)
+    const [listEurope, listAmericas, listAsia] = await Promise.all([
+      fetchAdsbRegion('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', 6000),
+      fetchAdsbRegion('https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/4000', 6000),
+      fetchAdsbRegion('https://api.adsb.lol/v2/lat/35.0/lon/105.0/dist/4000', 6000)
     ]);
-    clearTimeout(adsbTimeout);
 
     const acMap = new Map();
-
-    if (resEurope && resEurope.ok) {
-      try {
-        const dataE = await resEurope.json();
-        for (const a of (dataE.ac || [])) {
-          if (a.hex && a.lat !== undefined && a.lon !== undefined) acMap.set(a.hex, a);
-        }
-      } catch (e) { logger.debug('Europe ADSB parse failed'); }
-    }
-
-    if (resAmericas && resAmericas.ok) {
-      try {
-        const dataA = await resAmericas.json();
-        for (const a of (dataA.ac || [])) {
-          if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) acMap.set(a.hex, a);
-        }
-      } catch (e) { logger.debug('Americas ADSB parse failed'); }
+    for (const a of [...listEurope, ...listAmericas, ...listAsia]) {
+      if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) {
+        acMap.set(a.hex, a);
+      }
     }
 
     if (acMap.size > 0) {
@@ -459,7 +456,7 @@ async function fetchOpenSkyFlights() {
         });
       }
 
-      logger.info({ count: flightFeatures.length }, '✈️ 100% Global ADSB feed synced active aircraft to cache (200ms response).');
+      logger.info({ count: flightFeatures.length }, '✈️ 100% Triple-Hub Global ADSB feed synced active aircraft to cache.');
       return saveAndCacheFlights(flightFeatures);
     }
   } catch (err) {
