@@ -407,17 +407,25 @@ async function fetchAdsbRegion(url, timeoutMs = 6000) {
 
 async function fetchOpenSkyFlights() {
   try {
-    // 1. High-Speed 100% Global ADSB live feed (Triple independent regional centers: Europe, Americas, Asia)
-    const [listEurope, listAmericas, listAsia] = await Promise.all([
-      fetchAdsbRegion('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', 6000),
-      fetchAdsbRegion('https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/4000', 6000),
-      fetchAdsbRegion('https://api.adsb.lol/v2/lat/35.0/lon/105.0/dist/4000', 6000)
-    ]);
+    // 7-region global grid wave sweep: Europe, US East, US West, South America, Africa, Asia, Australia
+    const regionUrls = [
+      'https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/3500',      // Europe & North Africa
+      'https://api.adsb.lol/v2/lat/40.71/lon/-74.0/dist/3500',     // North America East & Canada
+      'https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/3500',  // North America West & Pacific
+      'https://api.adsb.lol/v2/lat/-15.78/lon/-47.92/dist/3500',  // South America
+      'https://api.adsb.lol/v2/lat/-1.29/lon/36.82/dist/3500',    // Africa & Middle East
+      'https://api.adsb.lol/v2/lat/35.67/lon/139.65/dist/3500',   // Asia & East Asia
+      'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500'   // Australia & Oceania
+    ];
+
+    const results = await Promise.all(regionUrls.map(url => fetchAdsbRegion(url, 6000)));
 
     const acMap = new Map();
-    for (const a of [...listEurope, ...listAmericas, ...listAsia]) {
-      if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) {
-        acMap.set(a.hex, a);
+    for (const list of results) {
+      for (const a of list) {
+        if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) {
+          acMap.set(a.hex, a);
+        }
       }
     }
 
