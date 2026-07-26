@@ -118,13 +118,13 @@ export const Map: React.FC<MapProps> = ({
     velocityKmh: number;
     updateTime: number;
     feature: any;
-  }>>(new Map());
+  }>>(new globalThis.Map());
 
   // Synchronize flight dataset into dead-reckoning animation state
   useEffect(() => {
     if (!flightsGeoJson || !flightsGeoJson.features) return;
     const now = Date.now();
-    const newMap = new Map();
+    const newMap = new globalThis.Map();
 
     for (const f of flightsGeoJson.features) {
       const icao = f.properties?.icao24 || Math.random().toString();
@@ -224,8 +224,7 @@ export const Map: React.FC<MapProps> = ({
 
       const quakeSrc = map.getSource('earthquakes-source') as mapboxgl.GeoJSONSource;
       if (quakeSrc) quakeSrc.setData(quakesData as any);
-    } catch (err) {}
-  };
+    } catch (err) {
       console.warn('⚠️ [Map.tsx pushData Error]:', err);
     }
 
