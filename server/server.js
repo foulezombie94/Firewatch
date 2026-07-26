@@ -358,37 +358,56 @@ async function fetchUsgsEarthquakes() {
   return quakesMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
 }
 
-async function fetchOpenSkyFlights() {
-  try {
-    const now = Math.floor(Date.now() / 1000);
-    const begin = now - 7200;
+function generateFallbackFlights() {
+  const routes = [
+    { callsign: 'AFR124', origin: 'France 🇫🇷', dep: 'CDG', arr: 'JFK', lat: 48.85, lon: 2.35, heading: 270, alt: 10600 },
+    { callsign: 'BAW178', origin: 'Royaume-Uni 🇬🇧', dep: 'LHR', arr: 'JFK', lat: 51.47, lon: -0.45, heading: 260, alt: 11000 },
+    { callsign: 'DLH400', origin: 'Allemagne 🇩🇪', dep: 'FRA', arr: 'JFK', lat: 50.03, lon: 8.57, heading: 280, alt: 10500 },
+    { callsign: 'UAE201', origin: 'Émirats Arabes Unis 🇦🇪', dep: 'DXB', arr: 'CDG', lat: 25.25, lon: 55.36, heading: 315, alt: 11500 },
+    { callsign: 'RAM750', origin: 'Maroc 🇲🇦', dep: 'CMN', arr: 'ORY', lat: 33.36, lon: -7.58, heading: 25, alt: 9800 },
+    { callsign: 'UAL900', origin: 'États-Unis 🇺🇸', dep: 'SFO', arr: 'LHR', lat: 37.62, lon: -122.37, heading: 45, alt: 11200 },
+    { callsign: 'ANA204', origin: 'Japon 🇯🇵', dep: 'HND', arr: 'CDG', lat: 35.54, lon: 139.77, heading: 330, alt: 10900 },
+    { callsign: 'AFL2400', origin: 'Espagne 🇪🇸', dep: 'MAD', arr: 'CDG', lat: 40.49, lon: -3.56, heading: 20, alt: 9500 },
+    { callsign: 'TAP432', origin: 'Portugal 🇵🇹', dep: 'LIS', arr: 'ORY', lat: 38.77, lon: -9.13, heading: 35, alt: 9700 },
+    { callsign: 'THY1821', origin: 'Turquie 🇹🇷', dep: 'IST', arr: 'CDG', lat: 41.27, lon: 28.75, heading: 300, alt: 10400 }
+  ];
 
-    const [statesRes, schedulesRes] = await Promise.all([
-      fetch('https://opensky-network.org/api/states/all'),
-      fetch(`https://opensky-network.org/api/flights/all?begin=${begin}&end=${now}`).catch((e) => {
-        logger.debug({ err: e.message }, 'OpenSky schedules optional request failed');
-        return null;
-      })
-    ]);
-
-    let flightSchedulesMap = new Map();
-    if (schedulesRes && schedulesRes.ok) {
-      try {
-        const schedData = await schedulesRes.json();
-        if (Array.isArray(schedData)) {
-          for (const item of schedData) {
-            if (item.icao24) {
-              flightSchedulesMap.set(item.icao24.toLowerCase(), {
-                dep: item.estDepartureAirport,
-                arr: item.estArrivalAirport
-              });
-            }
-          }
-        }
-      } catch (e) {
-        logger.debug({ err: e.message }, 'Failed parsing OpenSky schedules payload');
-      }
+  return routes.map((r, i) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [r.lon, r.lat] },
+    properties: {
+      icao24: `fallback_${i}`,
+      callsign: r.callsign,
+      origin_country: r.origin,
+      altitude_m: r.alt,
+      altitude_ft: Math.round(r.alt * 3.28084),
+      velocity_kmh: 850,
+      heading: r.heading,
+      vertical_rate: 0,
+      on_ground: false,
+      squawk: '7000',
+      dep_iata: r.dep,
+      dep_name: `Aéroport (${r.dep})`,
+      dep_city: r.dep,
+      dep_country: r.origin,
+      arr_iata: r.arr,
+      arr_name: `Aéroport (${r.arr})`,
+      arr_city: r.arr,
+      arr_country: 'International'
     }
+  }));
+}
+
+async function fetchOpenSkyFlights() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const statesRes = await fetch('https://opensky-network.org/api/states/all', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Firewatch RealTime App)' },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
     if (statesRes.ok) {
       const data = await statesRes.json();
@@ -405,36 +424,6 @@ async function fetchOpenSkyFlights() {
         const callsign = (s[1] || 'N/A').trim();
         const originCountry = s[2] || 'International';
         const heading = Math.round(s[10] || 0);
-
-        const realSchedule = flightSchedulesMap.get(icao24);
-
-        let depIata = 'DEP';
-        let depName = `Point d'Envol (${originCountry})`;
-        let depCity = originCountry;
-        let depCountry = originCountry;
-
-        let arrIata = 'ARR';
-        let arrName = 'Trajectoire Internationale';
-        let arrCity = 'En Vol';
-        let arrCountry = 'International';
-
-        if (realSchedule) {
-          if (realSchedule.dep) {
-            const depResolved = resolveAirportInfo(realSchedule.dep, originCountry);
-            depIata = depResolved.iata;
-            depName = depResolved.name;
-            depCity = depResolved.city;
-            depCountry = depResolved.country;
-          }
-
-          if (realSchedule.arr) {
-            const arrResolved = resolveAirportInfo(realSchedule.arr, 'International');
-            arrIata = arrResolved.iata;
-            arrName = arrResolved.name;
-            arrCity = arrResolved.city;
-            arrCountry = arrResolved.country;
-          }
-        }
 
         flightFeatures.push({
           type: 'Feature',
@@ -453,49 +442,65 @@ async function fetchOpenSkyFlights() {
             vertical_rate: s[11] || 0,
             on_ground: s[8] || false,
             squawk: s[14] || 'N/A',
-            dep_iata: depIata,
-            dep_name: depName,
-            dep_city: depCity,
-            dep_country: depCountry,
-            arr_iata: arrIata,
-            arr_name: arrName,
-            arr_city: arrCity,
-            arr_country: arrCountry
+            dep_iata: 'DEP',
+            dep_name: `Aéroport (${originCountry})`,
+            dep_city: originCountry,
+            dep_country: originCountry,
+            arr_iata: 'ARR',
+            arr_name: 'Trajectoire Internationale',
+            arr_city: 'En Vol',
+            arr_country: 'International'
           }
         });
       }
 
-      const geoJson = {
-        type: 'FeatureCollection',
-        metadata: {
-          generated_at: new Date().toISOString(),
-          count: flightFeatures.length
-        },
-        features: flightFeatures
-      };
+      if (flightFeatures.length > 0) {
+        const geoJson = {
+          type: 'FeatureCollection',
+          metadata: {
+            generated_at: new Date().toISOString(),
+            count: flightFeatures.length
+          },
+          features: flightFeatures
+        };
 
-      flightsMemoryCache = {
-        lastUpdated: Date.now(),
-        geoJson: geoJson
-      };
+        flightsMemoryCache = {
+          lastUpdated: Date.now(),
+          geoJson: geoJson
+        };
 
-      try {
-        fs.writeFileSync(FLIGHTS_CACHE_FILE, JSON.stringify(geoJson), 'utf8');
-      } catch (e) {
-        logger.debug({ err: e.message }, 'Failed writing flights disk cache');
+        try {
+          fs.writeFileSync(FLIGHTS_CACHE_FILE, JSON.stringify(geoJson), 'utf8');
+        } catch (e) {
+          logger.debug({ err: e.message }, 'Failed writing flights disk cache');
+        }
+
+        redisSet('cache:flights', geoJson, 120).catch((e) => {
+          logger.debug({ err: e.message }, 'Redis flights cache set failed');
+        });
+        logger.info({ count: flightFeatures.length }, 'OpenSky REST API active aircraft synced to cache.');
+        return geoJson;
       }
-
-      redisSet('cache:flights', geoJson, 120).catch((e) => {
-        logger.debug({ err: e.message }, 'Redis flights cache set failed');
-      });
-      logger.info({ count: flightFeatures.length }, 'OpenSky REST API active aircraft synced to cache.');
-      return geoJson;
     }
   } catch (err) {
+    clearTimeout(timeoutId);
     logger.error({ err: err.message }, 'Error fetching OpenSky flights');
   }
 
-  return flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
+  // Failsafe fallback if OpenSky rate limits or is offline
+  if (!flightsMemoryCache.geoJson || !flightsMemoryCache.geoJson.features || flightsMemoryCache.geoJson.features.length === 0) {
+    const fallbackFeatures = generateFallbackFlights();
+    flightsMemoryCache = {
+      lastUpdated: Date.now(),
+      geoJson: {
+        type: 'FeatureCollection',
+        metadata: { generated_at: new Date().toISOString(), count: fallbackFeatures.length, mode: 'fallback' },
+        features: fallbackFeatures
+      }
+    };
+  }
+
+  return flightsMemoryCache.geoJson;
 }
 
 function loadDiskCache() {
