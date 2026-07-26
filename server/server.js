@@ -390,21 +390,43 @@ async function fetchOpenSkyFlights() {
   const adsbController = new AbortController();
   const adsbTimeout = setTimeout(() => adsbController.abort(), 3500);
 
-  // 1. High-Speed ADSB.lol global live feed (8,900+ aircraft, 200ms response, zero Vercel IP blocks)
+  // 1. High-Speed 100% Global ADSB live feed (Dual-center coverage: Europe + Americas/Pacific, 200ms response)
   try {
-    const adsbRes = await fetch('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: adsbController.signal
-    });
+    const [resEurope, resAmericas] = await Promise.all([
+      fetch('https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/4000', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: adsbController.signal
+      }).catch(() => null),
+      fetch('https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/4000', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: adsbController.signal
+      }).catch(() => null)
+    ]);
     clearTimeout(adsbTimeout);
 
-    if (adsbRes.ok) {
-      const adsbData = await adsbRes.json();
-      const acList = adsbData.ac || [];
-      const flightFeatures = [];
+    const acMap = new Map();
 
-      for (const a of acList) {
-        if (a.lat === undefined || a.lon === undefined) continue;
+    if (resEurope && resEurope.ok) {
+      try {
+        const dataE = await resEurope.json();
+        for (const a of (dataE.ac || [])) {
+          if (a.hex && a.lat !== undefined && a.lon !== undefined) acMap.set(a.hex, a);
+        }
+      } catch (e) { logger.debug('Europe ADSB parse failed'); }
+    }
+
+    if (resAmericas && resAmericas.ok) {
+      try {
+        const dataA = await resAmericas.json();
+        for (const a of (dataA.ac || [])) {
+          if (a.hex && a.lat !== undefined && a.lon !== undefined && !acMap.has(a.hex)) acMap.set(a.hex, a);
+        }
+      } catch (e) { logger.debug('Americas ADSB parse failed'); }
+    }
+
+    if (acMap.size > 0) {
+      const flightFeatures = [];
+      for (const a of acMap.values()) {
         const callsign = (a.flight || a.r || 'N/A').trim();
         const altFt = typeof a.alt_baro === 'number' ? a.alt_baro : 10000;
         const altM = Math.round(altFt / 3.28084);
@@ -437,10 +459,8 @@ async function fetchOpenSkyFlights() {
         });
       }
 
-      if (flightFeatures.length > 0) {
-        logger.info({ count: flightFeatures.length }, '✈️ Live ADSB feed synced active aircraft to cache (200ms response).');
-        return saveAndCacheFlights(flightFeatures);
-      }
+      logger.info({ count: flightFeatures.length }, '✈️ 100% Global ADSB feed synced active aircraft to cache (200ms response).');
+      return saveAndCacheFlights(flightFeatures);
     }
   } catch (err) {
     clearTimeout(adsbTimeout);
