@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass-panel-deep {
+    background: rgba(8, 12, 24, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .glass-card-neon {
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-card-neon:hover {
+    border-color: rgba(249, 115, 22, 0.6);
+    background: rgba(30, 41, 59, 0.85);
+    box-shadow: 0 15px 40px -10px rgba(249, 115, 22, 0.35);
+    transform: translateY(-2px);
+  }
+
+  .glow-orange-lg {
+    box-shadow: 0 0 35px rgba(249, 115, 22, 0.4);
+  }
+  .glow-red-lg {
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.45);
+  }
+
+  .text-gradient-fire {
+    background: linear-gradient(135deg, #ffffff 0%, #fed7aa 40%, #f97316 75%, #ef4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Hide Mapbox attribution bar & logo completely */
+.mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-logo,
+.mapboxgl-compact-show,
+.mapboxgl-ctrl-bottom-right,
+.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-attrib {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Marquee Ticker Animation */
+@keyframes tickerMarquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-ticker {
+  display: flex;
+  width: max-content;
+  animation: tickerMarquee 45s linear infinite;
+}
+.animate-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(8, 12, 24, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f97316, #dc2626);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fb923c, #f43f5e);
+}
+
+/* Custom Mapbox Popup Styling */
+.mapboxgl-popup {
+  max-width: 360px !important;
+  z-index: 50;
+}
+
+.mapboxgl-popup-content {
+  background: rgba(8, 12, 24, 0.95) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(249, 115, 22, 0.4) !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(249, 115, 22, 0.25) !important;
+  border-radius: 1.5rem !important;
+  padding: 1.25rem !important;
+  color: #f8fafc !important;
+}
+
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: rgba(8, 12, 24, 0.95) !important;
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: rgba(8, 12, 24, 0.95) !important;
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: rgba(8, 12, 24, 0.95) !important;
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: rgba(8, 12, 24, 0.95) !important;
+}
+
+.mapboxgl-popup-close-button {
+  color: #94a3b8 !important;
+  font-size: 1.25rem !important;
+  padding: 0.25rem 0.5rem !important;
+  right: 0.5rem !important;
+  top: 0.5rem !important;
+}
+.mapboxgl-popup-close-button:hover {
+  color: #f8fafc !important;
+  background: transparent !important;
+}
+
+/* Keyframes used by ErrorOverlay Tailwind arbitrary animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+}
+
+@keyframes bannerSlideIn {
+  from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes emberFloat {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { opacity: 0.5; transform: translateY(-45vh) translateX(20px) scale(0.8); }
+  100% { transform: translateY(-95vh) translateX(-15px) scale(0.2); opacity: 0; }
+}
+
