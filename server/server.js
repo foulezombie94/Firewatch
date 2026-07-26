@@ -407,17 +407,20 @@ async function fetchAdsbRegion(url, timeoutMs = 6000) {
 
 async function fetchOpenSkyFlights() {
   try {
-    // 9-region global grid wave sweep: 100% Full Earth coverage
+    // 12-zone full planet Earth grid matrix: 100% total worldwide coverage
     const regionUrls = [
-      'https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/3500',      // Wave 1: Europe & North Africa
-      'https://api.adsb.lol/v2/lat/40.71/lon/-74.0/dist/3500',     // Wave 2: North America East & Canada
-      'https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/3500',  // Wave 3: North America West & Pacific
-      'https://api.adsb.lol/v2/lat/-15.78/lon/-47.92/dist/3500',  // Wave 4: South America
-      'https://api.adsb.lol/v2/lat/-1.29/lon/36.82/dist/3500',    // Wave 5: Africa & Middle East
-      'https://api.adsb.lol/v2/lat/35.67/lon/139.65/dist/3500',   // Wave 6: East Asia & Japan
-      'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500',  // Wave 7: Australia & Oceania
-      'https://api.adsb.lol/v2/lat/20.59/lon/78.96/dist/3500',    // Wave 8: India, South Asia & SE Asia
-      'https://api.adsb.lol/v2/lat/15.0/lon/-90.0/dist/3500'      // Wave 9: Central America, Caribbean & Gulf of Mexico
+      'https://api.adsb.lol/v2/lat/48.85/lon/2.35/dist/3500',      // Zone 1: Europe West & Central
+      'https://api.adsb.lol/v2/lat/55.75/lon/37.61/dist/3500',     // Zone 2: Eastern Europe & Eurasia
+      'https://api.adsb.lol/v2/lat/40.71/lon/-74.0/dist/3500',     // Zone 3: North America East & Canada
+      'https://api.adsb.lol/v2/lat/34.05/lon/-118.25/dist/3500',  // Zone 4: North America West & Pacific
+      'https://api.adsb.lol/v2/lat/15.0/lon/-90.0/dist/3500',      // Zone 5: Central America & Caribbean
+      'https://api.adsb.lol/v2/lat/-15.78/lon/-47.92/dist/3500',  // Zone 6: South America North & Brazil
+      'https://api.adsb.lol/v2/lat/-34.60/lon/-58.38/dist/3500',  // Zone 7: South America South & Argentina/Chile
+      'https://api.adsb.lol/v2/lat/15.0/lon/15.0/dist/3500',       // Zone 8: North & West Africa
+      'https://api.adsb.lol/v2/lat/-1.29/lon/36.82/dist/3500',    // Zone 9: East & South Africa
+      'https://api.adsb.lol/v2/lat/20.59/lon/78.96/dist/3500',    // Zone 10: Middle East, India & SE Asia
+      'https://api.adsb.lol/v2/lat/35.67/lon/139.65/dist/3500',   // Zone 11: East Asia, China & Japan
+      'https://api.adsb.lol/v2/lat/-25.27/lon/133.77/dist/3500'   // Zone 12: Australia, NZ & Oceania
     ];
 
     const results = await Promise.all(regionUrls.map(url => fetchAdsbRegion(url, 6000)));
