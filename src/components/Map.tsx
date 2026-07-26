@@ -111,6 +111,97 @@ export const Map: React.FC<MapProps> = ({
   flightsGeoJsonRef.current = flightsGeoJson;
   layerModeRef.current = layerMode;
 
+  const flightStateRef = useRef<Map<string, {
+    startLon: number;
+    startLat: number;
+    heading: number;
+    velocityKmh: number;
+    updateTime: number;
+    feature: any;
+  }>>(new Map());
+
+  // Synchronize flight dataset into dead-reckoning animation state
+  useEffect(() => {
+    if (!flightsGeoJson || !flightsGeoJson.features) return;
+    const now = Date.now();
+    const newMap = new Map();
+
+    for (const f of flightsGeoJson.features) {
+      const icao = f.properties?.icao24 || Math.random().toString();
+      const coords = f.geometry.coordinates;
+      const speed = f.properties?.velocity_kmh || 500;
+      const heading = f.properties?.heading || 0;
+
+      newMap.set(icao, {
+        startLon: coords[0],
+        startLat: coords[1],
+        heading,
+        velocityKmh: speed,
+        updateTime: now,
+        feature: f
+      });
+    }
+
+    flightStateRef.current = newMap;
+  }, [flightsGeoJson]);
+
+  // 60 FPS Continuous Smooth Flight Animation Engine (Dead-Reckoning Physics)
+  useEffect(() => {
+    let animFrameId: number;
+
+    const animateFlights = () => {
+      const map = mapRef.current;
+      if (map && isMapStyleReady(map)) {
+        const flightSrc = map.getSource('flights-source') as mapboxgl.GeoJSONSource;
+        if (flightSrc && flightStateRef.current.size > 0) {
+          const now = Date.now();
+          const animatedFeatures: any[] = [];
+
+          for (const state of flightStateRef.current.values()) {
+            const elapsedSec = (now - state.updateTime) / 1000;
+            // Cap extrapolation to max 25 seconds to prevent overshooting
+            const clampedSec = Math.min(elapsedSec, 25);
+
+            // Distance in km = (speed in km/h / 3600) * seconds
+            const distKm = (state.velocityKmh / 3600) * clampedSec;
+            const headingRad = (state.heading * Math.PI) / 180;
+
+            // Dead reckoning GPS coordinates calculation
+            const dLat = (distKm * Math.cos(headingRad)) / 111.12;
+            const cosLat = Math.cos((state.startLat * Math.PI) / 180);
+            const dLon = (distKm * Math.sin(headingRad)) / (111.12 * (Math.abs(cosLat) < 0.01 ? 1 : cosLat));
+
+            const curLon = state.startLon + dLon;
+            const curLat = state.startLat + dLat;
+
+            animatedFeatures.push({
+              ...state.feature,
+              geometry: {
+                type: 'Point',
+                coordinates: [curLon, curLat]
+              }
+            });
+          }
+
+          try {
+            flightSrc.setData({
+              type: 'FeatureCollection',
+              features: animatedFeatures
+            } as any);
+          } catch (e) {}
+        }
+      }
+
+      animFrameId = requestAnimationFrame(animateFlights);
+    };
+
+    animFrameId = requestAnimationFrame(animateFlights);
+
+    return () => {
+      cancelAnimationFrame(animFrameId);
+    };
+  }, []);
+
   const pushData = () => {
     const map = mapRef.current;
     if (!map) return;
@@ -127,17 +218,14 @@ export const Map: React.FC<MapProps> = ({
     try {
       const firesData = geoJsonRef.current || { type: 'FeatureCollection', features: [] };
       const quakesData = quakesGeoJsonRef.current || { type: 'FeatureCollection', features: [] };
-      const flightsData = flightsGeoJsonRef.current || { type: 'FeatureCollection', features: [] };
 
       const fireSrc = map.getSource('fires-source') as mapboxgl.GeoJSONSource;
       if (fireSrc) fireSrc.setData(firesData as any);
 
       const quakeSrc = map.getSource('earthquakes-source') as mapboxgl.GeoJSONSource;
       if (quakeSrc) quakeSrc.setData(quakesData as any);
-
-      const flightSrc = map.getSource('flights-source') as mapboxgl.GeoJSONSource;
-      if (flightSrc) flightSrc.setData(flightsData as any);
-    } catch (err) {
+    } catch (err) {}
+  };
       console.warn('⚠️ [Map.tsx pushData Error]:', err);
     }
 

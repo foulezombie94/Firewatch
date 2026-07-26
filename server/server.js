@@ -386,7 +386,7 @@ function saveAndCacheFlights(flightFeatures) {
   return geoJson;
 }
 
-async function fetchAdsbRegion(url, timeoutMs = 6000) {
+async function fetchAdsbRegion(url, timeoutMs = 3500) {
   const controller = new AbortController();
   const tId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -465,8 +465,8 @@ async function fetchOpenSkyFlights() {
     ];
 
     const [milList, ...results] = await Promise.all([
-      fetchAdsbRegion('https://api.adsb.lol/v2/mil', 6000),
-      ...regionUrls.map(url => fetchAdsbRegion(url, 6000))
+      fetchAdsbRegion('https://api.adsb.lol/v2/mil', 3000),
+      ...regionUrls.map(url => fetchAdsbRegion(url, 3000))
     ]);
 
     const acMap = new Map();
