@@ -358,20 +358,48 @@ async function fetchUsgsEarthquakes() {
   return quakesMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
 }
 
+function saveAndCacheFlights(flightFeatures) {
+  const geoJson = {
+    type: 'FeatureCollection',
+    metadata: {
+      generated_at: new Date().toISOString(),
+      count: flightFeatures.length
+    },
+    features: flightFeatures
+  };
+
+  flightsMemoryCache = {
+    lastUpdated: Date.now(),
+    geoJson: geoJson
+  };
+
+  try {
+    fs.writeFileSync(FLIGHTS_CACHE_FILE, JSON.stringify(geoJson), 'utf8');
+  } catch (e) {
+    logger.debug({ err: e.message }, 'Failed writing flights disk cache');
+  }
+
+  redisSet('cache:flights', geoJson, 120).catch((e) => {
+    logger.debug({ err: e.message }, 'Redis flights cache set failed');
+  });
+
+  return geoJson;
+}
+
 async function fetchOpenSkyFlights() {
   let statesRes = null;
   const maxAttempts = 2;
 
+  // 1. Try OpenSky Network API (5s timeout per attempt)
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
       statesRes = await fetch('https://opensky-network.org/api/states/all', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+          'Accept': 'application/json'
         },
         signal: controller.signal
       });
@@ -382,7 +410,7 @@ async function fetchOpenSkyFlights() {
       const cause = err.cause ? (err.cause.message || err.cause.code || err.cause) : err.message;
       logger.warn({ attempt, cause: String(cause) }, '⚠️ OpenSky fetch attempt failed, retrying...');
       if (attempt < maxAttempts) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
       }
     }
   }
@@ -406,10 +434,7 @@ async function fetchOpenSkyFlights() {
 
         flightFeatures.push({
           type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [lon, lat]
-          },
+          geometry: { type: 'Point', coordinates: [lon, lat] },
           properties: {
             icao24: s[0],
             callsign: callsign,
@@ -433,39 +458,71 @@ async function fetchOpenSkyFlights() {
         });
       }
 
-      const geoJson = {
-        type: 'FeatureCollection',
-        metadata: {
-          generated_at: new Date().toISOString(),
-          count: flightFeatures.length
-        },
-        features: flightFeatures
-      };
-
-      flightsMemoryCache = {
-        lastUpdated: Date.now(),
-        geoJson: geoJson
-      };
-
       if (flightFeatures.length > 0) {
-        try {
-          fs.writeFileSync(FLIGHTS_CACHE_FILE, JSON.stringify(geoJson), 'utf8');
-        } catch (e) {
-          logger.debug({ err: e.message }, 'Failed writing flights disk cache');
-        }
+        logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
+        return saveAndCacheFlights(flightFeatures);
+      }
+    } else if (statesRes) {
+      logger.error({ status: statesRes.status, statusText: statesRes.statusText }, '❌ [Vercel Log Error] OpenSky API HTTP status not OK');
+    } else {
+      logger.warn('⚠️ OpenSky API connection timed out on Vercel IPs, querying ADSB live fallback feed...');
+    }
 
-        redisSet('cache:flights', geoJson, 120).catch((e) => {
-          logger.debug({ err: e.message }, 'Redis flights cache set failed');
+    // 2. Secondary Live Public ADSB Feed (ADSB.lol) if OpenSky times out on Vercel IPs
+    const adsbController = new AbortController();
+    const adsbTimeout = setTimeout(() => adsbController.abort(), 4000);
+    const adsbRes = await fetch('https://api.adsb.lol/v2/ladd', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: adsbController.signal
+    }).catch(() => null);
+    clearTimeout(adsbTimeout);
+
+    if (adsbRes && adsbRes.ok) {
+      const adsbData = await adsbRes.json();
+      const acList = adsbData.ac || [];
+      const flightFeatures = [];
+
+      for (const a of acList) {
+        if (a.lat === undefined || a.lon === undefined) continue;
+        const callsign = (a.flight || a.r || 'N/A').trim();
+        const altFt = typeof a.alt_baro === 'number' ? a.alt_baro : 10000;
+        const altM = Math.round(altFt / 3.28084);
+        const heading = Math.round(a.track || 0);
+        const originCountry = a.t ? `Avion (${a.t})` : 'International';
+
+        flightFeatures.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [a.lon, a.lat] },
+          properties: {
+            icao24: a.hex || 'N/A',
+            callsign: callsign,
+            origin_country: originCountry,
+            altitude_m: altM,
+            altitude_ft: altFt,
+            velocity_kmh: Math.round((a.gs || 0) * 1.852),
+            heading: heading,
+            vertical_rate: 0,
+            on_ground: false,
+            squawk: '7000',
+            dep_iata: 'DEP',
+            dep_name: `Aéroport (${originCountry})`,
+            dep_city: originCountry,
+            dep_country: originCountry,
+            arr_iata: 'ARR',
+            arr_name: 'Trajectoire Internationale',
+            arr_city: 'En Vol',
+            arr_country: 'International'
+          }
         });
       }
 
-      logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
-      return geoJson;
-    } else {
-      logger.error({ status: statesRes.status, statusText: statesRes.statusText }, '❌ [Vercel Log Error] OpenSky API HTTP status not OK');
+      if (flightFeatures.length > 0) {
+        logger.info({ count: flightFeatures.length }, '✈️ Live ADSB feed synced active aircraft to cache.');
+        return saveAndCacheFlights(flightFeatures);
+      }
     }
   } catch (err) {
-    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception processing OpenSky flights');
+    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception processing flights');
   }
 
   return flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
