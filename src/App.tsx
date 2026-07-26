@@ -68,73 +68,57 @@ export const App: React.FC = () => {
     flights: 'loading',
   });
 
-  // Initial & periodic background fetch with per-service health tracking
+  // Initial & progressive background fetch — render data on map instantly as each API responds!
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    const newStatus: ServiceStatus = { fires: 'loading', earthquakes: 'loading', flights: 'loading' };
-    setServiceStatus(newStatus);
+    setServiceStatus({ fires: 'loading', earthquakes: 'loading', flights: 'loading' });
 
-    // Fetch all 3 APIs independently — one failure must NOT block the others
-    const results = await Promise.allSettled([
-      fetch('/api/fires?hours=48&min_frp=0&sensor=all'),
-      fetch('/api/earthquakes'),
-      fetch('/api/flights'),
-    ]);
-
-    const [firesResult, quakesResult, flightsResult] = results;
-
-    // 🔥 NASA FIRMS — Fires
-    if (firesResult.status === 'fulfilled' && firesResult.value.ok) {
-      try {
-        const data: FireGeoJSON = await firesResult.value.json();
+    // 1. 🔥 NASA FIRMS — Fires (Primary Data Source)
+    const fetchFires = fetch('/api/fires?hours=48&min_frp=0&sensor=all')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Fires error');
+        const data: FireGeoJSON = await res.json();
         setRawFiresData(data);
-        newStatus.fires = 'ok';
         if (data.metadata?.next_update_in_seconds) {
           setNextUpdateInSeconds(data.metadata.next_update_in_seconds);
         }
-      } catch {
-        newStatus.fires = 'error';
-      }
-    } else {
-      newStatus.fires = 'error';
-    }
+        setServiceStatus(prev => ({ ...prev, fires: 'ok' }));
+      })
+      .catch(() => {
+        setServiceStatus(prev => ({ ...prev, fires: 'error' }));
+        setError('Impossible de contacter le serveur NASA FIRMS. Les données incendies sont temporairement indisponibles.');
+      })
+      .finally(() => {
+        setIsLoading(false); // Hide main loading spinner as soon as primary fire data arrives!
+      });
 
-    // 🌍 USGS — Earthquakes
-    if (quakesResult.status === 'fulfilled' && quakesResult.value.ok) {
-      try {
-        const qData: EarthquakeGeoJSON = await quakesResult.value.json();
+    // 2. 🌍 USGS — Earthquakes (Progressive Parallel Load)
+    const fetchQuakes = fetch('/api/earthquakes')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Quakes error');
+        const qData: EarthquakeGeoJSON = await res.json();
         setQuakesGeoJson(qData);
-        newStatus.earthquakes = 'ok';
-      } catch {
-        newStatus.earthquakes = 'error';
-      }
-    } else {
-      newStatus.earthquakes = 'error';
-    }
+        setServiceStatus(prev => ({ ...prev, earthquakes: 'ok' }));
+      })
+      .catch(() => {
+        setServiceStatus(prev => ({ ...prev, earthquakes: 'error' }));
+      });
 
-    // ✈️ OpenSky — Flights
-    if (flightsResult.status === 'fulfilled' && flightsResult.value.ok) {
-      try {
-        const flData: FlightGeoJSON = await flightsResult.value.json();
+    // 3. ✈️ OpenSky — Flights (Progressive Parallel Load)
+    const fetchFlights = fetch('/api/flights')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Flights error');
+        const flData: FlightGeoJSON = await res.json();
         setFlightsGeoJson(flData);
-        newStatus.flights = 'ok';
-      } catch {
-        newStatus.flights = 'error';
-      }
-    } else {
-      newStatus.flights = 'error';
-    }
+        setServiceStatus(prev => ({ ...prev, flights: 'ok' }));
+      })
+      .catch(() => {
+        setServiceStatus(prev => ({ ...prev, flights: 'error' }));
+      });
 
-    setServiceStatus({ ...newStatus });
-
-    // Set global error message only if fires are down (primary data source)
-    if (newStatus.fires === 'error') {
-      setError('Impossible de contacter le serveur NASA FIRMS. Les données incendies sont temporairement indisponibles.');
-    }
-
-    setIsLoading(false);
+    await Promise.allSettled([fetchFires, fetchQuakes, fetchFlights]);
   }, []);
 
   useEffect(() => {
