@@ -277,9 +277,10 @@ async function fetchFirmsData() {
   }
 
   const endpoints = [
-    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/VIIRS_NOAA20_NRT/world/1`, name: 'VIIRS_NOAA20' },
-    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/VIIRS_SNPP_NRT/world/1`, name: 'VIIRS_SNPP' },
-    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/MODIS_NRT/world/1`, name: 'MODIS_NRT' }
+    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/VIIRS_NOAA20_NRT/world/2`, name: 'VIIRS_NOAA20' },
+    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/VIIRS_NOAA21_NRT/world/2`, name: 'VIIRS_NOAA21' },
+    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/VIIRS_SNPP_NRT/world/2`, name: 'VIIRS_SNPP' },
+    { url: `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_MAP_KEY}/MODIS_NRT/world/2`, name: 'MODIS_NRT' }
   ];
 
   let allFeatures = [];
@@ -299,6 +300,18 @@ async function fetchFirmsData() {
       logger.error({ source: ep.name, err: err.message }, '[NASA FIRMS] Stream fetch failed');
     }
   }
+
+  // Deduplicate features by unique spatial coordinate & timestamp key
+  const uniqueMap = new Map();
+  for (const f of allFeatures) {
+    const coords = f.geometry.coordinates;
+    const key = `${coords[0].toFixed(3)}_${coords[1].toFixed(3)}_${f.properties.acq_date}_${f.properties.acq_time}`;
+    if (!uniqueMap.has(key) || f.properties.frp > uniqueMap.get(key).properties.frp) {
+      uniqueMap.set(key, f);
+    }
+  }
+
+  allFeatures = Array.from(uniqueMap.values());
 
   // Sort by FRP descending
   allFeatures.sort((a, b) => b.properties.frp - a.properties.frp);
