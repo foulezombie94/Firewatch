@@ -123,6 +123,20 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+
+    // 15-Second Ultra-Fast Real-Time Flight Radar Auto-Sync with ADSB!
+    const flightInterval = setInterval(() => {
+      fetch('/api/flights')
+        .then(async (res) => {
+          if (res.ok) {
+            const flData: FlightGeoJSON = await res.json();
+            setFlightsGeoJson(flData);
+          }
+        })
+        .catch(() => {});
+    }, 15000);
+
+    return () => clearInterval(flightInterval);
   }, [fetchData]);
 
   // Instantaneous 0ms Client-Side In-Memory Filtering for Fire Time Period, FRP, Sensor & Confidence!

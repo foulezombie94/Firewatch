@@ -379,7 +379,7 @@ function saveAndCacheFlights(flightFeatures) {
     logger.debug({ err: e.message }, 'Failed writing flights disk cache');
   }
 
-  redisSet('cache:flights', geoJson, 120).catch((e) => {
+  redisSet('cache:flights', geoJson, 15).catch((e) => {
     logger.debug({ err: e.message }, 'Redis flights cache set failed');
   });
 
@@ -798,7 +798,8 @@ app.get('/api/geocode', async (req, res) => {
 
 app.get('/api/flights', async (req, res) => {
   try {
-    if (!flightsMemoryCache.geoJson || (Date.now() - flightsMemoryCache.lastUpdated > TWO_MINUTES_MS)) {
+    const FIFTEEN_SECONDS_MS = 15000;
+    if (!flightsMemoryCache.geoJson || (Date.now() - flightsMemoryCache.lastUpdated > FIFTEEN_SECONDS_MS)) {
       await fetchOpenSkyFlights();
     }
     const data = flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
