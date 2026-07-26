@@ -16,8 +16,18 @@ export const app = express();
 app.set('trust proxy', 1); // Trust reverse-proxy headers (Vercel, Render, Nginx, Cloudflare)
 const PORT = process.env.PORT || 3001;
 
+app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json());
+
+// OWASP Recommended Security Headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // 1. Secure Access Credentials (100% Environment Variables)
 const NASA_MAP_KEY = process.env.NASA_MAP_KEY || '';
