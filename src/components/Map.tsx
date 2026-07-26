@@ -248,6 +248,9 @@ export const Map: React.FC<MapProps> = ({
     };
   }, []);
 
+  const lastFireDataRef = useRef<any>(null);
+  const lastQuakeDataRef = useRef<any>(null);
+
   const pushData = () => {
     const map = mapRef.current;
     if (!map) return;
@@ -266,10 +269,16 @@ export const Map: React.FC<MapProps> = ({
       const quakesData = quakesGeoJsonRef.current || { type: 'FeatureCollection', features: [] };
 
       const fireSrc = map.getSource('fires-source') as mapboxgl.GeoJSONSource;
-      if (fireSrc) fireSrc.setData(firesData as any);
+      if (fireSrc && lastFireDataRef.current !== firesData) {
+        lastFireDataRef.current = firesData;
+        fireSrc.setData(firesData as any);
+      }
 
       const quakeSrc = map.getSource('earthquakes-source') as mapboxgl.GeoJSONSource;
-      if (quakeSrc) quakeSrc.setData(quakesData as any);
+      if (quakeSrc && lastQuakeDataRef.current !== quakesData) {
+        lastQuakeDataRef.current = quakesData;
+        quakeSrc.setData(quakesData as any);
+      }
     } catch (err) {
       console.warn('⚠️ [Map.tsx pushData Error]:', err);
     }
