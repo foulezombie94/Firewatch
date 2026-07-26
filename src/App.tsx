@@ -9,6 +9,7 @@ import { ReportModal } from './components/ReportModal';
 import { ErrorOverlay } from './components/ErrorOverlay';
 import { FireGeoJSON, EarthquakeGeoJSON, FlightGeoJSON, FilterState, MapStyleKey, MapProjectionKey, FireFeature, FlightFeature, CameraPreset } from './types';
 import { getReverseGeocode } from './utils/geocoding';
+import { getCachedGeoJSON, setCachedGeoJSON } from './utils/idbCache';
 
 interface ServiceStatus {
   fires: 'ok' | 'error' | 'loading';
@@ -45,7 +46,23 @@ export const App: React.FC = () => {
     }
   });
   const [flightsGeoJson, setFlightsGeoJson] = useState<FlightGeoJSON | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !localStorage.getItem('firewatch_cached_fires'));
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Instant 0ms IndexedDB Cache Restoration on Mount!
+  useEffect(() => {
+    getCachedGeoJSON<FireGeoJSON>('firewatch_cached_fires').then((cached) => {
+      if (cached && cached.features && cached.features.length > 0) {
+        setRawFiresData(cached);
+        setIsLoading(false);
+      }
+    });
+
+    getCachedGeoJSON<EarthquakeGeoJSON>('firewatch_cached_quakes').then((cached) => {
+      if (cached && cached.features && cached.features.length > 0) {
+        setQuakesGeoJson(cached);
+      }
+    });
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [nextUpdateInSeconds, setNextUpdateInSeconds] = useState<number>(7200);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('satellite'); // Default style is Satellite HD
@@ -94,9 +111,7 @@ export const App: React.FC = () => {
         if (!res.ok) throw new Error('Fires error');
         const data: FireGeoJSON = await res.json();
         setRawFiresData(data);
-        try {
-          localStorage.setItem('firewatch_cached_fires', JSON.stringify(data));
-        } catch (e) {}
+        setCachedGeoJSON('firewatch_cached_fires', data);
         if (data.metadata?.next_update_in_seconds) {
           setNextUpdateInSeconds(data.metadata.next_update_in_seconds);
         }
@@ -116,9 +131,7 @@ export const App: React.FC = () => {
         if (!res.ok) throw new Error('Quakes error');
         const qData: EarthquakeGeoJSON = await res.json();
         setQuakesGeoJson(qData);
-        try {
-          localStorage.setItem('firewatch_cached_quakes', JSON.stringify(qData));
-        } catch (e) {}
+        setCachedGeoJSON('firewatch_cached_quakes', qData);
         setServiceStatus(prev => ({ ...prev, earthquakes: 'ok' }));
       })
       .catch(() => {
