@@ -831,6 +831,24 @@ app.get('/api/flights', async (req, res) => {
   }
 });
 
+// Explicit route for Google AdSense ads.txt verification
+app.get('/ads.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  
+  const publicAdsPath = path.join(__dirname, '..', 'public', 'ads.txt');
+  if (fs.existsSync(publicAdsPath)) {
+    return res.sendFile(publicAdsPath);
+  }
+  
+  const distAdsPath = path.join(__dirname, '..', 'dist', 'ads.txt');
+  if (fs.existsSync(distAdsPath)) {
+    return res.sendFile(distAdsPath);
+  }
+
+  return res.send('google.com, pub-7458097942291936, DIRECT, f08c47fec0942fa0\n');
+});
+
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
