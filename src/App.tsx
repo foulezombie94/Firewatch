@@ -7,6 +7,8 @@ import { FireInspector } from './components/FireInspector';
 import { FlightInspector } from './components/FlightInspector';
 import { ReportModal } from './components/ReportModal';
 import { ErrorOverlay } from './components/ErrorOverlay';
+import { PrivacyModal } from './components/PrivacyModal';
+import { CookieBanner } from './components/CookieBanner';
 import { FireGeoJSON, EarthquakeGeoJSON, FlightGeoJSON, FilterState, MapStyleKey, MapProjectionKey, FireFeature, FlightFeature, CameraPreset } from './types';
 import { getReverseGeocode } from './utils/geocoding';
 import { getCachedGeoJSON, setCachedGeoJSON } from './utils/idbCache';
@@ -93,6 +95,7 @@ export const App: React.FC = () => {
 
   const [isAutoTourActive, setIsAutoTourActive] = useState<boolean>(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({
     fires: 'loading',
     earthquakes: 'loading',
@@ -392,6 +395,7 @@ export const App: React.FC = () => {
         isAutoTourActive={isAutoTourActive}
         onToggleAutoTour={() => setIsAutoTourActive((prev) => !prev)}
         onGenerateReport={() => setIsReportModalOpen(true)}
+        onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
       />
 
       {/* Main Mapbox GL 3D Canvas */}
@@ -460,6 +464,17 @@ export const App: React.FC = () => {
         topHotspots={geocodedTopHotspots}
         totalFires={geoJson?.metadata?.filtered_count || 0}
         lastUpdated={geoJson?.metadata?.last_updated || null}
+      />
+
+      {/* Google AdSense Privacy Policy & RGPD Modal */}
+      <PrivacyModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
+
+      {/* RGPD Cookie Consent Banner (CMP) */}
+      <CookieBanner
+        onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
       />
     </div>
   );

@@ -10,7 +10,8 @@ import {
   FileText,
   Clock,
   Timer,
-  Heart
+  Heart,
+  ShieldCheck
 } from 'lucide-react';
 import { CameraPreset, FireFeature } from '../types';
 
@@ -27,6 +28,7 @@ interface HeaderProps {
   isAutoTourActive: boolean;
   onToggleAutoTour: () => void;
   onGenerateReport: () => void;
+  onOpenPrivacy?: () => void;
 }
 
 // Vector SVG French Flag
@@ -62,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   isAutoTourActive,
   onToggleAutoTour,
   onGenerateReport,
+  onOpenPrivacy,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
@@ -184,6 +187,18 @@ export const Header: React.FC<HeaderProps> = ({
             <FileText className="w-3.5 h-3.5 text-cyan-400" />
             <span>Rapport SITREP</span>
           </button>
+
+          {/* Privacy Policy & RGPD Modal Button */}
+          {onOpenPrivacy && (
+            <button
+              onClick={onOpenPrivacy}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#14171d] hover:bg-[#1a1e27] text-slate-300 border border-[#21252d] text-xs font-medium transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Politique de Confidentialité & RGPD"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>RGPD</span>
+            </button>
+          )}
 
           {/* Quick France Focus Shortcut */}
           <button
