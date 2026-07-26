@@ -359,17 +359,36 @@ async function fetchUsgsEarthquakes() {
 }
 
 async function fetchOpenSkyFlights() {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  let statesRes = null;
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      statesRes = await fetch('https://opensky-network.org/api/states/all', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (statesRes.ok) break;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      const cause = err.cause ? (err.cause.message || err.cause.code || err.cause) : err.message;
+      logger.warn({ attempt, cause: String(cause) }, '⚠️ OpenSky fetch attempt failed, retrying...');
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
 
   try {
-    const statesRes = await fetch('https://opensky-network.org/api/states/all', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Firewatch RealTime App)' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
-    if (statesRes.ok) {
+    if (statesRes && statesRes.ok) {
       const data = await statesRes.json();
       const rawStates = data.states || [];
       const flightFeatures = [];
@@ -446,8 +465,7 @@ async function fetchOpenSkyFlights() {
       logger.error({ status: statesRes.status, statusText: statesRes.statusText }, '❌ [Vercel Log Error] OpenSky API HTTP status not OK');
     }
   } catch (err) {
-    clearTimeout(timeoutId);
-    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception fetching OpenSky flights');
+    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception processing OpenSky flights');
   }
 
   return flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
