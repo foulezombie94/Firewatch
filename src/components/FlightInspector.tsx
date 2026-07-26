@@ -93,21 +93,45 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <Plane className="w-5 h-5 rotate-45 text-emerald-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-extrabold text-base text-white font-mono tracking-tight leading-none">
                   {flightProps.callsign || 'VOL SANS INDICATIF'}
                 </h3>
+                {flightProps.flight_type && (
+                  <span 
+                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider border shadow-sm"
+                    style={{
+                      backgroundColor: `${flightProps.color || '#38bdf8'}20`,
+                      borderColor: `${flightProps.color || '#38bdf8'}50`,
+                      color: flightProps.color || '#38bdf8'
+                    }}
+                  >
+                    {flightProps.flight_type}
+                  </span>
+                )}
                 {isEmergency && (
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse">
                     {emergencyLabel}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5">
+              <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5 flex-wrap">
                 <Globe className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{flightProps.origin_country}</span>
                 <span className="text-slate-600">•</span>
                 <span className="font-mono text-slate-400 uppercase text-[10px]">ICAO: {flightProps.icao24}</span>
+                {flightProps.model_type && flightProps.model_type !== 'N/A' && (
+                  <>
+                    <span className="text-slate-600">•</span>
+                    <span className="font-mono text-cyan-300 text-[10px]">Modèle: {flightProps.model_type}</span>
+                  </>
+                )}
+                {flightProps.registration && flightProps.registration !== 'N/A' && (
+                  <>
+                    <span className="text-slate-600">•</span>
+                    <span className="font-mono text-amber-300 text-[10px]">Immat: {flightProps.registration}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

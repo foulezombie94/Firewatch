@@ -92,6 +92,11 @@ export interface FlightProperties {
   arr_name?: string;
   arr_city?: string;
   arr_country?: string;
+  category?: 'commercial' | 'military' | 'private' | 'emergency';
+  flight_type?: string;
+  color?: string;
+  model_type?: string;
+  registration?: string;
 }
 
 export interface FlightFeature {
