@@ -907,12 +907,18 @@ export const Map: React.FC<MapProps> = ({
               try {
                 const rendered = map.queryRenderedFeatures(bbox, { layers: layersToQuery });
                 if (rendered && rendered.length > 0) {
-                  const feat = rendered[0];
-                  const icao = (feat as any).properties?.icao24;
+                  const featAny = rendered[0] as any;
+                  const props = featAny.properties || {};
+                  const icao = props.icao24;
                   if (icao && flightStateRef.current.has(icao)) {
                     return flightStateRef.current.get(icao)!.feature;
                   }
-                  return feat as unknown as FlightFeature;
+                  const coords = featAny.geometry && featAny.geometry.coordinates ? featAny.geometry.coordinates : [e.lngLat.lng, e.lngLat.lat, 10000];
+                  return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: coords },
+                    properties: props
+                  } as FlightFeature;
                 }
               } catch (err) {}
             }

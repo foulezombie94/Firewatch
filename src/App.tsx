@@ -356,9 +356,35 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleInspectFlight = (feature: FlightFeature) => {
+  const handleInspectFlight = (input: any) => {
+    if (!input) return;
     setInspectedFire(null);
-    const coords = feature.geometry.coordinates as [number, number, number];
+
+    let coords: [number, number, number] = [0, 0, 0];
+    let feature: FlightFeature;
+
+    if (input.geometry && Array.isArray(input.geometry.coordinates)) {
+      coords = input.geometry.coordinates as [number, number, number];
+      feature = input;
+    } else if (input.properties && input.geometry && Array.isArray(input.geometry.coordinates)) {
+      coords = input.geometry.coordinates as [number, number, number];
+      feature = input;
+    } else if (Array.isArray(input.coordinates)) {
+      coords = input.coordinates;
+      feature = input.feature || {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: coords },
+        properties: input.properties || input,
+      };
+    } else {
+      // Fallback for flat property objects
+      feature = {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [0, 0, 0] },
+        properties: input.properties || input,
+      };
+    }
+
     setInspectedFlight({
       feature,
       coords,
