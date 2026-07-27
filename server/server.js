@@ -499,70 +499,18 @@ async function fetchOpenSkyFlights() {
       }
     }
 
-const AIRPORT_DB = {
-  'LFPG': { iata: 'CDG', name: 'Aéroport Paris-Charles de Gaulle', city: 'Paris', country: 'France 🇫🇷' },
-  'LFPO': { iata: 'ORY', name: 'Aéroport Paris-Orly', city: 'Paris', country: 'France 🇫🇷' },
-  'LFLL': { iata: 'LYS', name: 'Aéroport Lyon-Saint Exupéry', city: 'Lyon', country: 'France 🇫🇷' },
-  'LFML': { iata: 'MRS', name: 'Aéroport Marseille-Provence', city: 'Marseille', country: 'France 🇫🇷' },
-  'LFMN': { iata: 'NCE', name: 'Aéroport Nice Côte d\'Azur', city: 'Nice', country: 'France 🇫🇷' },
-  'LFBO': { iata: 'TLS', name: 'Aéroport Toulouse-Blagnac', city: 'Toulouse', country: 'France 🇫🇷' },
-  'LFBD': { iata: 'BOD', name: 'Aéroport Bordeaux-Mérignac', city: 'Bordeaux', country: 'France 🇫🇷' },
-  'LFQQ': { iata: 'LIL', name: 'Aéroport Lille-Lesquin', city: 'Lille', country: 'France 🇫🇷' },
-  'LFRS': { iata: 'NTE', name: 'Aéroport Nantes Atlantique', city: 'Nantes', country: 'France 🇫🇷' },
-  'LFKJ': { iata: 'AJA', name: 'Aéroport Ajaccio Napoléon Bonaparte', city: 'Ajaccio', country: 'France 🇫🇷' },
-  'LFKB': { iata: 'BIA', name: 'Aéroport Bastia-Poretta', city: 'Bastia', country: 'France 🇫🇷' },
-  'EGLL': { iata: 'LHR', name: 'London Heathrow Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
-  'EGKK': { iata: 'LGW', name: 'London Gatwick Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
-  'EGSS': { iata: 'STN', name: 'London Stansted Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
-  'EGCC': { iata: 'MAN', name: 'Manchester Airport', city: 'Manchester', country: 'Royaume-Uni 🇬🇧' },
-  'EGPH': { iata: 'EDI', name: 'Edinburgh Airport', city: 'Édimbourg', country: 'Royaume-Uni 🇬🇧' },
-  'EDDF': { iata: 'FRA', name: 'Flughafen Frankfurt am Main', city: 'Francfort', country: 'Allemagne 🇩🇪' },
-  'EDDM': { iata: 'MUC', name: 'Flughafen München', city: 'Munich', country: 'Allemagne 🇩🇪' },
-  'EDDB': { iata: 'BER', name: 'Flughafen Berlin Brandenburg', city: 'Berlin', country: 'Allemagne 🇩🇪' },
-  'EDDL': { iata: 'DUS', name: 'Flughafen Düsseldorf', city: 'Düsseldorf', country: 'Allemagne 🇩🇪' },
-  'LOWW': { iata: 'VIE', name: 'Flughafen Wien-Schwechat', city: 'Vienne', country: 'Autriche 🇦🇹' },
-  'LSZH': { iata: 'ZRH', name: 'Flughafen Zürich', city: 'Zurich', country: 'Suisse 🇨🇭' },
-  'LSGG': { iata: 'GVA', name: 'Aéroport de Genève', city: 'Genève', country: 'Suisse 🇨🇭' },
-  'EHAM': { iata: 'AMS', name: 'Amsterdam Airport Schiphol', city: 'Amsterdam', country: 'Pays-Bas 🇳🇱' },
-  'EBBR': { iata: 'BRU', name: 'Aéroport de Bruxelles-National', city: 'Bruxelles', country: 'Belgique 🇧🇪' },
-  'LEMD': { iata: 'MAD', name: 'Aeropuerto Adolfo Suárez Madrid-Barajas', city: 'Madrid', country: 'Espagne 🇪🇸' },
-  'LEBL': { iata: 'BCN', name: 'Aeropuerto Josep Tarradellas Barcelona-El Prat', city: 'Barcelone', country: 'Espagne 🇪🇸' },
-  'LEPA': { iata: 'PMI', name: 'Aeropuerto de Palma de Mallorca', city: 'Palma', country: 'Espagne 🇪🇸' },
-  'LPPT': { iata: 'LIS', name: 'Aeroporto de Lisboa', city: 'Lisbonne', country: 'Portugal 🇵🇹' },
-  'LIRF': { iata: 'FCO', name: 'Aeroporto di Roma-Fiumicino', city: 'Rome', country: 'Italie 🇮🇹' },
-  'LIMC': { iata: 'MXP', name: 'Aeroporto di Milano-Malpensa', city: 'Milan', country: 'Italie 🇮🇹' },
-  'LGAV': { iata: 'ATH', name: 'Athens International Airport', city: 'Athènes', country: 'Grèce 🇬🇷' },
-  'LTFM': { iata: 'IST', name: 'Istanbul Airport', city: 'Istanbul', country: 'Turquie 🇹🇷' },
-  'KJFK': { iata: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York', country: 'États-Unis 🇺🇸' },
-  'KEWR': { iata: 'EWR', name: 'Newark Liberty International Airport', city: 'Newark/NYC', country: 'États-Unis 🇺🇸' },
-  'KLAX': { iata: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'États-Unis 🇺🇸' },
-  'KORD': { iata: 'ORD', name: 'Chicago O\'Hare International Airport', city: 'Chicago', country: 'États-Unis 🇺🇸' },
-  'KATL': { iata: 'ATL', name: 'Hartsfield-Jackson Atlanta Int. Airport', city: 'Atlanta', country: 'États-Unis 🇺🇸' },
-  'KMIA': { iata: 'MIA', name: 'Miami International Airport', city: 'Miami', country: 'États-Unis 🇺🇸' },
-  'KSFO': { iata: 'SFO', name: 'San Francisco International Airport', city: 'San Francisco', country: 'États-Unis 🇺🇸' },
-  'CYYZ': { iata: 'YYZ', name: 'Toronto Pearson International Airport', city: 'Toronto', country: 'Canada 🇨🇦' },
-  'CYVR': { iata: 'YVR', name: 'Vancouver International Airport', city: 'Vancouver', country: 'Canada 🇨🇦' },
-  'SBGR': { iata: 'GRU', name: 'Aeroporto Internacional de São Paulo', city: 'São Paulo', country: 'Brésil 🇧🇷' },
-  'SAEZ': { iata: 'EZE', name: 'Aeropuerto Internacional Ezeiza', city: 'Buenos Aires', country: 'Argentine 🇦🇷' },
-  'OMDB': { iata: 'DXB', name: 'Dubai International Airport', city: 'Dubaï', country: 'Émirats Arabes Unis 🇦🇪' },
-  'OTHH': { iata: 'DOH', name: 'Hamad International Airport', city: 'Doha', country: 'Qatar 🇶🇦' },
-  'RJTT': { iata: 'HND', name: 'Tokyo Haneda Airport', city: 'Tokyo', country: 'Japon 🇯🇵' },
-  'VHHH': { iata: 'HKG', name: 'Hong Kong International Airport', city: 'Hong Kong', country: 'Chine 🇭🇰' },
-  'WSSS': { iata: 'SIN', name: 'Singapore Changi Airport', city: 'Singapour', country: 'Singapour 🇸🇬' },
-  'YSSY': { iata: 'SYD', name: 'Sydney Kingsford Smith Airport', city: 'Sydney', country: 'Australie 🇦🇺' },
-};
-
 function resolveAirportDetails(icaoCode, category, callsign, isDeparture) {
   const code = (icaoCode || '').trim().toUpperCase();
 
-  // 1. Direct ICAO Airport Lookup
-  if (code && AIRPORT_DB[code]) {
-    const info = AIRPORT_DB[code];
+  // 1. Direct Lookup in 29,300+ Global Airports Database (global_airports.json)
+  if (code && globalAirportsDb && globalAirportsDb[code]) {
+    const info = globalAirportsDb[code];
+    const countryFlag = COUNTRY_FLAGS[info.country] || info.country || 'International 🌐';
     return {
-      iata: info.iata,
-      name: info.name,
-      city: info.city,
-      country: info.country
+      iata: info.iata || info.icao || code,
+      name: info.name || `Aéroport (${code})`,
+      city: info.city || info.state || code,
+      country: countryFlag
     };
   }
 
