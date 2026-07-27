@@ -23,6 +23,16 @@ interface MapProps {
   onInspectFlight?: (feature: FlightFeature) => void;
 }
 
+const escapeHtml = (str: string | number | undefined | null): string => {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const STYLE_URLS: Record<MapStyleKey, string> = {
   dark: 'mapbox://styles/mapbox/dark-v11',
   satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
@@ -598,9 +608,9 @@ export const Map: React.FC<MapProps> = ({
         </div>
         
         <div style="font-size: 11px; line-height: 1.5; color: #cbd5e1;">
-          <div><strong style="color: #94a3b8;">Lieu :</strong> ${props.locationName || 'Anomalie thermiques'}</div>
-          <div><strong style="color: #94a3b8;">Capteur :</strong> ${props.satellite}</div>
-          <div><strong style="color: #94a3b8;">Détecté le :</strong> ${localTime}</div>
+          <div><strong style="color: #94a3b8;">Lieu :</strong> ${escapeHtml(props.locationName) || 'Anomalie thermiques'}</div>
+          <div><strong style="color: #94a3b8;">Capteur :</strong> ${escapeHtml(props.satellite)}</div>
+          <div><strong style="color: #94a3b8;">Détecté le :</strong> ${escapeHtml(localTime)}</div>
           <div><strong style="color: #94a3b8;">Confiance :</strong> ${props.confidence === 'h' ? 'Haute 🔴' : 'Normale 🟠'}</div>
         </div>
       </div>
@@ -800,13 +810,13 @@ export const Map: React.FC<MapProps> = ({
             <div style="font-family: system-ui, sans-serif; color: #f8fafc; font-size: 12px; padding: 4px;">
               <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 13px; color: #38bdf8; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 6px;">
                 <span>🌋 SÉISME USGS</span>
-                <span style="background: rgba(56,189,248,0.2); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-family: monospace;">M ${props.mag}</span>
+                <span style="background: rgba(56,189,248,0.2); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-family: monospace;">M ${escapeHtml(props.mag)}</span>
               </div>
               <div style="font-weight: 700; color: #ffffff; margin-bottom: 4px;">
-                ${props.title || props.place}
+                ${escapeHtml(props.title || props.place)}
               </div>
               <div style="font-size: 10px; color: #94a3b8; font-family: monospace; space-y: 2px;">
-                <div>📅 ${dateStr}</div>
+                <div>📅 ${escapeHtml(dateStr)}</div>
                 <div>🌊 Alerte Tsunami: ${props.tsunami ? 'OUI ⚠️' : 'Non'}</div>
               </div>
             </div>
