@@ -1050,20 +1050,42 @@ app.get('/api/geocode', async (req, res) => {
 
 app.get('/api/flights', async (req, res) => {
   try {
-    // 100% Direct Live Fetch (No Server Cache, Zero Rate Limits on ADSB)
-    const data = await fetchAdsbFlights();
-    const count = data.features ? data.features.length : 0;
+    const FLIGHTS_STALE_MS = 15_000; // 15 seconds freshness window
+    const now = Date.now();
+    const cacheAge = now - (flightsMemoryCache.lastUpdated || 0);
+    const hasCachedData = flightsMemoryCache.geoJson && flightsMemoryCache.geoJson.features?.length > 0;
 
-    if (count === 0) {
-      logger.warn({ endpoint: '/api/flights', count: 0 }, '⚠️ [Vercel Console Log] /api/flights - 0 avions en vol renvoyés au client (couche aérienne vide)');
-    } else {
-      logger.info({ endpoint: '/api/flights', count }, '✅ [Vercel Console Log] /api/flights - Avions transmis en direct sans cache');
+    // If cache is fresh enough, serve instantly (0ms response)
+    if (hasCachedData && cacheAge < FLIGHTS_STALE_MS) {
+      const data = flightsMemoryCache.geoJson;
+      logger.info({ endpoint: '/api/flights', count: data.features.length, cacheAgeMs: cacheAge }, '⚡ [Instant Cache HIT] /api/flights');
+      res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=3, stale-while-revalidate=5');
+      return res.json(data);
     }
 
-    // Ultra-Fast Edge CDN Cache (3s Micro-Cache): Handles 100,000+ concurrent visitors instantly with 0ms lag
+    // If cache exists but is stale, serve stale data instantly AND refresh in background
+    if (hasCachedData && cacheAge >= FLIGHTS_STALE_MS) {
+      const data = flightsMemoryCache.geoJson;
+      logger.info({ endpoint: '/api/flights', count: data.features.length, cacheAgeMs: cacheAge }, '♻️ [Stale-While-Revalidate] /api/flights - Serving stale, refreshing in background');
+      // Fire-and-forget background refresh
+      fetchAdsbFlights().catch(e => logger.debug({ err: e.message }, 'Background flight refresh failed'));
+      res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=3, stale-while-revalidate=5');
+      return res.json(data);
+    }
+
+    // No cache at all (first ever request) — must wait for live fetch
+    const data = await fetchAdsbFlights();
+    const count = data.features ? data.features.length : 0;
+    logger.info({ endpoint: '/api/flights', count }, '✅ [Cold Start] /api/flights - Premier fetch en direct');
     res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=3, stale-while-revalidate=5');
     res.json(data);
   } catch (err) {
+    // Even on error, try to serve stale cache
+    if (flightsMemoryCache.geoJson) {
+      logger.warn({ endpoint: '/api/flights', err: err.message }, '⚠️ Fetch failed, serving stale cache');
+      res.setHeader('Cache-Control', 'public, max-age=1');
+      return res.json(flightsMemoryCache.geoJson);
+    }
     logger.error({ endpoint: '/api/flights', err: err.message, stack: err.stack }, '❌ [Vercel Console Error] Échec du traitement /api/flights');
     const errorMsg = process.env.NODE_ENV === 'production' ? undefined : err.message;
     res.status(500).json({ error: 'Failed to fetch live flight radar data', message: errorMsg });
