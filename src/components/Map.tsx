@@ -259,7 +259,9 @@ export const Map: React.FC<MapProps> = ({
     let animFrameId: number;
     let lastAnimTime = 0;
     const isMobileDevice = typeof window !== 'undefined' && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768);
-    const FRAME_INTERVAL_MS = isMobileDevice ? 33 : 16; // 60 FPS ultra-fluidity on PC, 30 FPS battery-saver on mobile
+    const deviceRam = typeof navigator !== 'undefined' && (navigator as any).deviceMemory ? (navigator as any).deviceMemory : 16;
+    const isLowRamPc = !isMobileDevice && deviceRam < 12;
+    const FRAME_INTERVAL_MS = (isMobileDevice || isLowRamPc) ? 33 : 16; // 30 FPS on Mobile & PC with <12GB RAM, 60 FPS on PCs with >=12GB RAM
 
     const animateFlights = (timestamp: number) => {
       // 1. Sleep when tab is in background (saves 100% CPU/battery when phone is locked or tab inactive)
