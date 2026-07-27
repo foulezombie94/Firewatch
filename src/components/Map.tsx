@@ -890,20 +890,20 @@ export const Map: React.FC<MapProps> = ({
             },
           });
 
-          const handleFlightClick = (e: mapboxgl.MapMouseEvent) => {
-            if (!isMapStyleReady(map)) return;
+          const handleFlightClick = (e: mapboxgl.MapMouseEvent): boolean => {
+            if (!isMapStyleReady(map)) return false;
             
-            // 30x30px bounding box query around click point for instant capture even when zoomed out
+            // 32x32px bounding box query around click point for instant capture even when zoomed out
             const bbox: [mapboxgl.PointLike, mapboxgl.PointLike] = [
-              [e.point.x - 15, e.point.y - 15],
-              [e.point.x + 15, e.point.y + 15]
+              [e.point.x - 16, e.point.y - 16],
+              [e.point.x + 16, e.point.y + 16]
             ];
 
             const layersToQuery = [];
             if (map.getLayer('flights-point')) layersToQuery.push('flights-point');
             if (map.getLayer('flights-hit-target')) layersToQuery.push('flights-hit-target');
 
-            if (!layersToQuery.length) return;
+            if (!layersToQuery.length) return false;
 
             const features = map.queryRenderedFeatures(bbox, { layers: layersToQuery });
 
@@ -927,14 +927,19 @@ export const Map: React.FC<MapProps> = ({
                 if (e.originalEvent) {
                   e.originalEvent.preventDefault();
                 }
+                return true;
               }
             }
+            return false;
           };
 
-          map.on('click', 'flights-point', handleFlightClick);
-          map.on('click', 'flights-hit-target', handleFlightClick);
-          map.on('contextmenu', 'flights-point', handleFlightClick);
-          map.on('contextmenu', 'flights-hit-target', handleFlightClick);
+          map.on('click', handleFlightClick);
+          map.on('contextmenu', (e) => {
+            const isPlane = handleFlightClick(e);
+            if (isPlane && e.originalEvent) {
+              e.originalEvent.preventDefault();
+            }
+          });
 
           const handleFlightEnter = () => {
             try {
