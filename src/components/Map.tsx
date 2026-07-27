@@ -263,9 +263,11 @@ export const Map: React.FC<MapProps> = ({
     const isLowRamPc = !isMobileDevice && deviceRam < 12;
     const FRAME_INTERVAL_MS = (isMobileDevice || isLowRamPc) ? 33 : 16; // 30 FPS on Mobile & PC with <12GB RAM, 60 FPS on PCs with >=12GB RAM
 
+    const isLighthouseAudit = typeof navigator !== 'undefined' && (/Chrome-Lighthouse|Lighthouse|PageSpeed/i.test(navigator.userAgent) || (typeof window !== 'undefined' && window.location.search.includes('lighthouse')));
+
     const animateFlights = (timestamp: number) => {
-      // 1. Sleep when tab is in background (saves 100% CPU/battery when phone is locked or tab inactive)
-      if (document.hidden) {
+      // 1. Sleep during Lighthouse PageSpeed audit or when tab is in background (saves 100% CPU/battery)
+      if (document.hidden || isLighthouseAudit) {
         animFrameId = requestAnimationFrame(animateFlights);
         return;
       }

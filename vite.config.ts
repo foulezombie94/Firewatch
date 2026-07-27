@@ -18,7 +18,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           mapbox: ['mapbox-gl'],
-          vendor: ['react', 'react-dom', 'lucide-react'],
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react'],
         },
       },
     },

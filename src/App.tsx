@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Map } from './components/Map';
 import { Legend } from './components/Legend';
 import { FireInspector } from './components/FireInspector';
 import { FlightInspector } from './components/FlightInspector';
-import { ReportModal } from './components/ReportModal';
 import { ErrorOverlay } from './components/ErrorOverlay';
-import { PrivacyModal } from './components/PrivacyModal';
-import { CookieBanner } from './components/CookieBanner';
 import { FireGeoJSON, EarthquakeGeoJSON, FlightGeoJSON, FilterState, MapStyleKey, MapProjectionKey, FireFeature, FlightFeature, CameraPreset } from './types';
 import { getReverseGeocode } from './utils/geocoding';
 import { getCachedGeoJSON, setCachedGeoJSON } from './utils/idbCache';
+
+const ReportModal = lazy(() => import('./components/ReportModal').then(m => ({ default: m.ReportModal })));
+const PrivacyModal = lazy(() => import('./components/PrivacyModal').then(m => ({ default: m.PrivacyModal })));
+const CookieBanner = lazy(() => import('./components/CookieBanner').then(m => ({ default: m.CookieBanner })));
 
 interface ServiceStatus {
   fires: 'ok' | 'error' | 'loading';
@@ -505,25 +506,31 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* SITREP Emergency Report Modal */}
-      <ReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        topHotspots={geocodedTopHotspots}
-        totalFires={geoJson?.metadata?.filtered_count || 0}
-        lastUpdated={geoJson?.metadata?.last_updated || null}
-      />
+      <Suspense fallback={null}>
+        {/* SITREP Emergency Report Modal */}
+        {isReportModalOpen && (
+          <ReportModal
+            isOpen={isReportModalOpen}
+            onClose={() => setIsReportModalOpen(false)}
+            topHotspots={geocodedTopHotspots}
+            totalFires={geoJson?.metadata?.filtered_count || 0}
+            lastUpdated={geoJson?.metadata?.last_updated || null}
+          />
+        )}
 
-      {/* Google AdSense Privacy Policy & RGPD Modal */}
-      <PrivacyModal
-        isOpen={isPrivacyModalOpen}
-        onClose={() => setIsPrivacyModalOpen(false)}
-      />
+        {/* Google AdSense Privacy Policy & RGPD Modal */}
+        {isPrivacyModalOpen && (
+          <PrivacyModal
+            isOpen={isPrivacyModalOpen}
+            onClose={() => setIsPrivacyModalOpen(false)}
+          />
+        )}
 
-      {/* RGPD Cookie Consent Banner (CMP) */}
-      <CookieBanner
-        onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
-      />
+        {/* RGPD Cookie Consent Banner (CMP) */}
+        <CookieBanner
+          onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
+        />
+      </Suspense>
     </div>
   );
 };
