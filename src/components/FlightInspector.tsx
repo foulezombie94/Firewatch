@@ -32,11 +32,19 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   onClose,
   onFlyToFlight,
 }) => {
-  const [lon, lat, altM] = coordinates;
+  const [lon, lat, rawAltM] = coordinates;
 
-  // Convert speed
-  const knots = Math.round(flightProps.velocity_kmh / 1.852);
-  const mach = (flightProps.velocity_kmh / 1062.2).toFixed(2);
+  // Safe Fallback Numbers
+  const altM = Math.round(flightProps.altitude_m ?? rawAltM ?? 0);
+  const altFt = Math.round(flightProps.altitude_ft ?? (altM * 3.28084));
+  const velocityKmh = Math.round(flightProps.velocity_kmh ?? 0);
+  const knots = Math.round(velocityKmh / 1.852);
+
+  // Dynamic ISA (International Standard Atmosphere) Speed of Sound & Mach calculation
+  // At Sea Level (0m): ~1225.0 km/h | At Tropopause (11000m+): ~1062.2 km/h
+  const tempK = altM >= 11000 ? 216.65 : Math.max(216.65, 288.15 - 0.0065 * altM);
+  const speedOfSoundKmh = 3.6 * Math.sqrt(1.4 * 287.05 * tempK);
+  const mach = velocityKmh > 0 ? (velocityKmh / speedOfSoundKmh).toFixed(2) : '0.00';
 
   // Vertical status
   const vertRate = flightProps.vertical_rate || 0;
@@ -54,17 +62,17 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
     vertColor = 'text-amber-400';
   }
 
-  // Squawk status
-  const squawk = flightProps.squawk;
+  // Normalized Squawk checking (supports both String and Number types)
+  const squawkStr = String(flightProps.squawk ?? '').trim();
   let isEmergency = false;
   let emergencyLabel = 'Normal';
-  if (squawk === '7700') {
+  if (squawkStr === '7700') {
     isEmergency = true;
     emergencyLabel = 'URGENCE GÉNÉRALE ⚠️';
-  } else if (squawk === '7600') {
+  } else if (squawkStr === '7600') {
     isEmergency = true;
     emergencyLabel = 'PERTE RADIO 📻';
-  } else if (squawk === '7500') {
+  } else if (squawkStr === '7500') {
     isEmergency = true;
     emergencyLabel = 'DETOURNEMENT 🚨';
   }
@@ -85,7 +93,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
 
   return (
     <div className="fixed top-20 right-6 z-30 pointer-events-auto w-96 max-w-[92vw] animate-in fade-in slide-in-from-right-3 duration-200 font-sans">
-      <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5">
+      <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5 max-h-[82vh] overflow-y-auto custom-scrollbar">
         {/* Header Bar */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
@@ -204,10 +212,10 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <Wind className="w-3 h-3 text-cyan-400" /> Altitude
             </div>
             <div className="text-sm font-bold text-cyan-300">
-              {flightProps.altitude_m.toLocaleString()} <span className="text-xs font-normal text-slate-400">m</span>
+              {altM.toLocaleString()} <span className="text-xs font-normal text-slate-400">m</span>
             </div>
             <div className="text-[9px] text-slate-400">
-              ({flightProps.altitude_ft.toLocaleString()} ft)
+              ({altFt.toLocaleString()} ft)
             </div>
           </div>
 
@@ -217,7 +225,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <Gauge className="w-3 h-3 text-emerald-400" /> Vitesse Sol
             </div>
             <div className="text-sm font-bold text-emerald-300">
-              {flightProps.velocity_kmh} <span className="text-xs font-normal text-slate-400">km/h</span>
+              {velocityKmh} <span className="text-xs font-normal text-slate-400">km/h</span>
             </div>
             <div className="text-[9px] text-slate-400">
               {knots} kts • Mach {mach}
@@ -243,7 +251,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <Radio className="w-3 h-3 text-purple-400" /> Transpondeur
             </div>
             <div className="text-sm font-bold text-purple-300">
-              {squawk || '1000'}
+              {squawkStr || '1000'}
             </div>
             <div className="text-[9px] text-slate-400">
               Mode-S / ADS-B
