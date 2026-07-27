@@ -258,7 +258,8 @@ export const Map: React.FC<MapProps> = ({
   useEffect(() => {
     let animFrameId: number;
     let lastAnimTime = 0;
-    const FRAME_INTERVAL_MS = 33; // ~30 FPS: Reduces GPU/CPU WebGL load by 50% while maintaining silky movement
+    const isMobileDevice = typeof window !== 'undefined' && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768);
+    const FRAME_INTERVAL_MS = isMobileDevice ? 33 : 16; // 60 FPS ultra-fluidity on PC, 30 FPS battery-saver on mobile
 
     const animateFlights = (timestamp: number) => {
       // 1. Sleep when tab is in background (saves 100% CPU/battery when phone is locked or tab inactive)
