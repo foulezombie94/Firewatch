@@ -92,33 +92,35 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   };
 
   const depIata = flightProps.dep_iata || 'DEP';
-  const depCity = flightProps.dep_city || flightProps.origin_country || 'Origine';
-  const depName = flightProps.dep_name || `Zone d'Envol (${flightProps.origin_country || 'Intl'})`;
+  const depCity = flightProps.dep_city || flightProps.origin_country || 'Départ';
+  const depName = flightProps.dep_name || `Aéroport de Départ (${flightProps.origin_country || 'Intl'})`;
+  const depCountry = flightProps.dep_country || '';
 
   const arrIata = flightProps.arr_iata || 'ARR';
-  const arrCity = flightProps.arr_city || 'Destination';
+  const arrCity = flightProps.arr_city || 'Arrivée';
   const arrName = flightProps.arr_name || 'En cours de vol';
+  const arrCountry = flightProps.arr_country || '';
 
   const rawColor = flightProps.color || '#38bdf8';
   const badgeColor = typeof rawColor === 'string' && rawColor.startsWith('#') && rawColor.length === 7 ? rawColor : '#38bdf8';
 
   return (
     <div className="fixed top-20 right-2 sm:right-6 z-30 pointer-events-auto w-88 sm:w-96 max-w-[92vw] animate-in fade-in slide-in-from-right-3 duration-200 font-sans">
-      <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5 max-h-[82vh] overflow-y-auto custom-scrollbar">
+      <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5 max-h-[82vh] overflow-y-auto custom-scrollbar min-w-0">
         {/* Header Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-md shadow-emerald-500/20">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 min-w-0 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-md shadow-emerald-500/20 shrink-0">
               <Plane className="w-5 h-5 rotate-45 text-emerald-400" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-extrabold text-base text-white font-mono tracking-tight leading-none">
+            <div className="min-w-0 overflow-hidden">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <h3 className="font-extrabold text-base text-white font-mono tracking-tight leading-none truncate max-w-[180px]" title={flightProps.callsign || 'VOL SANS INDICATIF'}>
                   {flightProps.callsign || 'VOL SANS INDICATIF'}
                 </h3>
                 {flightProps.flight_type && (
                   <span 
-                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider border shadow-sm"
+                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider border shadow-sm shrink-0"
                     style={{
                       backgroundColor: `${badgeColor}20`,
                       borderColor: `${badgeColor}50`,
@@ -129,26 +131,26 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
                   </span>
                 )}
                 {isEmergency && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse shrink-0">
                     {emergencyLabel}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5 flex-wrap">
-                <Globe className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{flightProps.origin_country}</span>
+              <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5 flex-wrap min-w-0">
+                <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[110px]" title={flightProps.origin_country}>{flightProps.origin_country}</span>
                 <span className="text-slate-600">•</span>
-                <span className="font-mono text-slate-400 uppercase text-[10px]">ICAO: {flightProps.icao24}</span>
+                <span className="font-mono text-slate-400 uppercase text-[10px] shrink-0">ICAO: {flightProps.icao24}</span>
                 {flightProps.model_type && flightProps.model_type !== 'N/A' && (
                   <>
                     <span className="text-slate-600">•</span>
-                    <span className="font-mono text-cyan-300 text-[10px]">Modèle: {flightProps.model_type}</span>
+                    <span className="font-mono text-cyan-300 text-[10px] truncate max-w-[90px]" title={`Modèle: ${flightProps.model_type}`}>Modèle: {flightProps.model_type}</span>
                   </>
                 )}
                 {flightProps.registration && flightProps.registration !== 'N/A' && (
                   <>
                     <span className="text-slate-600">•</span>
-                    <span className="font-mono text-amber-300 text-[10px]">Immat: {flightProps.registration}</span>
+                    <span className="font-mono text-amber-300 text-[10px] truncate max-w-[90px]" title={`Immat: ${flightProps.registration}`}>Immat: {flightProps.registration}</span>
                   </>
                 )}
               </div>
@@ -157,60 +159,70 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border border-slate-800 cursor-pointer"
+            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border border-slate-800 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* PROMINENT FLIGHT ROUTE CARD (DÉPART ➔ ARRIVÉE) */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 space-y-2">
+        <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 space-y-2 overflow-hidden min-w-0">
           <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-between">
-            <span className="flex items-center gap-1 text-emerald-400 font-bold">
-              <Plane className="w-3 h-3 text-emerald-400" /> Plan de Vol & Itinéraire
+            <span className="flex items-center gap-1 text-emerald-400 font-bold min-w-0 truncate">
+              <Plane className="w-3 h-3 text-emerald-400 shrink-0" /> Plan de Vol & Itinéraire
             </span>
-            <span className="font-mono bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300">
+            <span className="font-mono bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300 shrink-0">
               DIRECT
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex items-center justify-between gap-2 pt-1 min-w-0">
             {/* Departure Airport */}
-            <div className="flex-1 space-y-0.5">
-              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
-                <PlaneTakeoff className="w-3.5 h-3.5 text-cyan-400" /> DÉPART
+            <div className="flex-1 min-w-0 space-y-0.5 overflow-hidden">
+              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
+                <PlaneTakeoff className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> DÉPART
               </div>
-              <div className="text-xl font-black font-mono text-cyan-300 tracking-tight">
+              <div className="text-lg sm:text-xl font-black font-mono text-cyan-300 tracking-tight truncate" title={depIata}>
                 {depIata}
               </div>
-              <div className="text-[11px] font-bold text-white truncate">
+              <div className="text-[11px] font-bold text-white truncate" title={depCity}>
                 {depCity}
               </div>
-              <div className="text-[9px] text-slate-400 truncate">
+              <div className="text-[9.5px] text-slate-300 truncate" title={depName}>
                 {depName}
               </div>
+              {depCountry && (
+                <div className="text-[9px] text-slate-400 font-mono truncate" title={depCountry}>
+                  {depCountry}
+                </div>
+              )}
             </div>
 
             {/* Flight Direction Arrow */}
-            <div className="flex flex-col items-center justify-center shrink-0 px-2">
+            <div className="flex flex-col items-center justify-center shrink-0 px-1">
               <ArrowRight className="w-4 h-4 text-emerald-400 animate-pulse" />
               <span className="text-[8px] font-mono text-slate-400 font-bold">VOL</span>
             </div>
 
             {/* Arrival Airport */}
-            <div className="flex-1 space-y-0.5 text-right">
-              <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400 font-bold">
-                ARRIVÉE <PlaneLanding className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex-1 min-w-0 space-y-0.5 text-right overflow-hidden">
+              <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400 font-bold uppercase">
+                ARRIVÉE <PlaneLanding className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               </div>
-              <div className="text-xl font-black font-mono text-emerald-300 tracking-tight">
+              <div className="text-lg sm:text-xl font-black font-mono text-emerald-300 tracking-tight truncate" title={arrIata}>
                 {arrIata}
               </div>
-              <div className="text-[11px] font-bold text-white truncate">
+              <div className="text-[11px] font-bold text-white truncate" title={arrCity}>
                 {arrCity}
               </div>
-              <div className="text-[9px] text-slate-400 truncate">
+              <div className="text-[9.5px] text-slate-300 truncate" title={arrName}>
                 {arrName}
               </div>
+              {arrCountry && (
+                <div className="text-[9px] text-slate-400 font-mono truncate" title={arrCountry}>
+                  {arrCountry}
+                </div>
+              )}
             </div>
           </div>
         </div>

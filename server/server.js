@@ -136,7 +136,9 @@ const COUNTRY_FLAGS = {
 
 function indexAirportsByIata() {
   globalAirportsIataDb = {};
-  for (const info of Object.values(globalAirportsDb)) {
+  for (const [icaoKey, info] of Object.entries(globalAirportsDb)) {
+    const key = icaoKey.trim().toUpperCase();
+    info.icao = key;
     if (info.iata && typeof info.iata === 'string') {
       globalAirportsIataDb[info.iata.trim().toUpperCase()] = info;
     }
@@ -171,23 +173,189 @@ async function loadGlobalAirportsDb() {
   }
 }
 
+let openFlightsRoutes = null;
+let dynamicIcaoToIata = {};
+const ROUTES_CACHE_FILE = path.join(CACHE_DIR, 'routes_cache.json');
+const AIRLINES_CACHE_FILE = path.join(CACHE_DIR, 'airlines_cache.json');
+
+const ICAO_TO_IATA_AIRLINES = {
+  AFR: 'AF', BAW: 'BA', DLH: 'LH', UAE: 'EK', DAL: 'DL', UAL: 'UA', AAL: 'AA',
+  EZY: 'U2', EZS: 'U2', RYR: 'FR', RYN: 'FR', TVF: 'TO', RAM: 'AT', DAH: 'AH',
+  TAR: 'TU', IBE: 'IB', TAP: 'TP', KLM: 'KL', SWR: 'LX', THY: 'TK', QFA: 'QF',
+  JAL: 'JL', ANA: 'NH', CPA: 'CX', SIA: 'SQ', SWA: 'WN', AZA: 'AZ', ITY: 'AZ',
+  FIN: 'AY', SAS: 'SK', WZZ: 'W6', NAX: 'DY', FDB: 'FZ', QTR: 'QR', ETD: 'EY',
+  MSR: 'MS', MEA: 'ME', RJA: 'RJ', SVA: 'SV', OAL: 'OA', AEE: 'A3', CSA: 'OK',
+  LOT: 'LO', BEL: 'SN', CLH: 'LH', EWG: 'EW', GWI: 'EW', VLG: 'VY', VOE: 'V7',
+  AEA: 'UX', TRA: 'HV', CMP: 'CM', AVA: 'AV', LAN: 'LA', TAM: 'JJ', AMX: 'AM',
+  ASA: 'AS', HAL: 'HA', JBU: 'B6', FFT: 'F9', NKS: 'NK', SKW: 'OO', RPA: 'YX'
+};
+
+async function loadOpenFlightsAirlines() {
+  if (Object.keys(dynamicIcaoToIata).length > 0) return dynamicIcaoToIata;
+  if (fs.existsSync(AIRLINES_CACHE_FILE)) {
+    try {
+      dynamicIcaoToIata = JSON.parse(fs.readFileSync(AIRLINES_CACHE_FILE, 'utf8'));
+      return dynamicIcaoToIata;
+    } catch (e) {}
+  }
+
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat');
+    if (res.ok) {
+      const text = await res.text();
+      const map = { ...ICAO_TO_IATA_AIRLINES };
+      text.split('\n').forEach(line => {
+        const parts = line.split(',');
+        if (parts.length >= 5) {
+          const iata = parts[3].replace(/"/g, '').trim().toUpperCase();
+          const icao = parts[4].replace(/"/g, '').trim().toUpperCase();
+          if (icao && icao.length === 3 && iata && iata.length === 2 && iata !== '\\N' && icao !== '\\N') {
+            map[icao] = iata;
+          }
+        }
+      });
+      dynamicIcaoToIata = map;
+      try {
+        fs.writeFileSync(AIRLINES_CACHE_FILE, JSON.stringify(map), 'utf8');
+      } catch (e) {}
+      return dynamicIcaoToIata;
+    }
+  } catch (err) {
+    logger.debug({ err: err.message }, '[Airlines DB] Failed fetching airlines.dat');
+  }
+  dynamicIcaoToIata = { ...ICAO_TO_IATA_AIRLINES };
+  return dynamicIcaoToIata;
+}
+
+async function loadOpenFlightsRoutes() {
+  if (openFlightsRoutes) return openFlightsRoutes;
+  if (fs.existsSync(ROUTES_CACHE_FILE)) {
+    try {
+      openFlightsRoutes = JSON.parse(fs.readFileSync(ROUTES_CACHE_FILE, 'utf8'));
+      return openFlightsRoutes;
+    } catch (e) {
+      logger.debug({ err: e.message }, '[Routes DB] Failed reading disk cache');
+    }
+  }
+
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat');
+    if (res.ok) {
+      const text = await res.text();
+      const routesMap = {};
+      text.split('\n').forEach(line => {
+        const parts = line.split(',');
+        if (parts.length >= 6) {
+          const airline = parts[0].trim().toUpperCase();
+          const src = parts[2].trim().toUpperCase();
+          const dst = parts[4].trim().toUpperCase();
+          if (airline && src && dst && src !== '\\N' && dst !== '\\N') {
+            if (!routesMap[airline]) routesMap[airline] = [];
+            routesMap[airline].push({ src, dst });
+          }
+        }
+      });
+      openFlightsRoutes = routesMap;
+      try {
+        fs.writeFileSync(ROUTES_CACHE_FILE, JSON.stringify(routesMap), 'utf8');
+      } catch (e) {}
+      return openFlightsRoutes;
+    }
+  } catch (err) {
+    logger.debug({ err: err.message }, '[Routes DB] Failed fetching OpenFlights routes');
+  }
+  openFlightsRoutes = {};
+  return openFlightsRoutes;
+}
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function inferRouteKinematic(lat, lon, heading) {
+  if (!globalAirportsDb) return { dep: 'DEP', arr: 'ARR' };
+  const majorAirports = Object.values(globalAirportsDb).filter(a => a.iata && a.iata.length === 3 && a.lat && a.lon);
+  let bestDep = null, bestArr = null, minDepDist = Infinity, minArrDist = Infinity;
+  const radLat = lat * Math.PI / 180;
+  const radLon = lon * Math.PI / 180;
+
+  for (const ap of majorAirports) {
+    const d = distanceKm(lat, lon, ap.lat, ap.lon);
+    if (d > 4000) continue;
+    const apRadLon = ap.lon * Math.PI / 180;
+    const apRadLat = ap.lat * Math.PI / 180;
+    const y = Math.sin(apRadLon - radLon) * Math.cos(apRadLat);
+    const x = Math.cos(radLat) * Math.sin(apRadLat) - Math.sin(radLat) * Math.cos(apRadLat) * Math.cos(apRadLon - radLon);
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    if (bearing < 0) bearing += 360;
+
+    let diff = Math.abs(bearing - heading);
+    if (diff > 180) diff = 360 - diff;
+
+    if (diff > 110 && d < minDepDist) { minDepDist = d; bestDep = ap; }
+    if (diff < 70 && d < minArrDist) { minArrDist = d; bestArr = ap; }
+  }
+
+  return {
+    dep: bestDep ? (bestDep.icao || bestDep.iata) : 'DEP',
+    arr: bestArr ? (bestArr.icao || bestArr.iata) : 'ARR'
+  };
+}
+
 export function resolveAirportInfo(icaoCode, defaultCountry = 'International') {
   if (!icaoCode) return null;
   const key = icaoCode.trim().toUpperCase();
 
-  const ap = globalAirportsDb[key];
+  if (!globalAirportsDb || Object.keys(globalAirportsDb).length === 0) {
+    if (fs.existsSync(GLOBAL_AIRPORTS_FILE)) {
+      try {
+        globalAirportsDb = JSON.parse(fs.readFileSync(GLOBAL_AIRPORTS_FILE, 'utf8'));
+        indexAirportsByIata();
+      } catch (e) {}
+    }
+  }
+
+  const ap = (globalAirportsDb && globalAirportsDb[key]) || (globalAirportsIataDb && globalAirportsIataDb[key]);
   if (ap) {
     const cName = COUNTRY_FLAGS[ap.country] || ap.country || defaultCountry;
     return {
-      iata: ap.iata && ap.iata.length === 3 ? ap.iata : key,
-      name: `${ap.name} (${key})`,
-      city: ap.city || ap.name,
-      country: cName
+      iata: ap.iata && ap.iata.length === 3 ? ap.iata.toUpperCase() : (ap.icao || key),
+      icao: ap.icao || key,
+      name: ap.name || `Aéroport (${key})`,
+      city: ap.city || ap.state || ap.name || key,
+      country: cName,
+      lat: ap.lat,
+      lon: ap.lon
+    };
+  }
+
+  if (key.length === 4) {
+    const prefix = key.substring(0, 2);
+    let countryName = defaultCountry;
+    if (prefix.startsWith('L')) countryName = 'France / Europe 🇪🇺';
+    else if (prefix.startsWith('E')) countryName = 'Royaume-Uni / Nord Europe 🇬🇧';
+    else if (prefix.startsWith('K')) countryName = 'États-Unis 🇺🇸';
+    else if (prefix.startsWith('C')) countryName = 'Canada 🇨🇦';
+    else if (prefix.startsWith('Y')) countryName = 'Australie 🇦🇺';
+    else if (prefix.startsWith('R') || prefix.startsWith('Z')) countryName = 'Asie 🌏';
+    else if (prefix.startsWith('O')) countryName = 'Moyen-Orient 🕌';
+
+    return {
+      iata: key,
+      icao: key,
+      name: `Aéroport International (${key})`,
+      city: `Zone (${key})`,
+      country: countryName
     };
   }
 
   return {
     iata: key,
+    icao: key,
     name: `Aéroport ${key}`,
     city: key,
     country: defaultCountry
@@ -511,79 +679,64 @@ async function fetchOpenSkyFlights() {
       }
     }
 
-function resolveAirportDetails(icaoCode, category, callsign, isDeparture) {
-  const code = (icaoCode || '').trim().toUpperCase();
+async function resolveFlightRouteAirports(a, category, callsign) {
+  const routes = await loadOpenFlightsRoutes();
+  const airlinesMap = await loadOpenFlightsAirlines();
+  const lat = a.lat;
+  const lon = a.lon;
+  const heading = a.track || 0;
 
-  // 1. Direct O(1) Lookup in 29,300+ Global Airports Database (global_airports.json)
-  const info = (code && globalAirportsDb[code]) || (code && globalAirportsIataDb[code]);
-  if (info) {
-    const countryFlag = COUNTRY_FLAGS[info.country] || info.country || 'International 🌐';
-    return {
-      iata: info.iata || info.icao || code,
-      name: info.name || `Aéroport (${code})`,
-      city: info.city || info.state || code,
-      country: countryFlag
-    };
+  let depCode = a.orig_icao || a.orig || a.dep || null;
+  let arrCode = a.dest_icao || a.dest || a.arr || null;
+
+  if (!depCode || !arrCode) {
+    const cs = (callsign || '').trim().toUpperCase();
+    if (cs && cs !== 'N/A') {
+      const icaoPrefix = cs.substring(0, 3);
+      const iataCode = airlinesMap[icaoPrefix] || cs.substring(0, 2);
+      const matchedRoutes = routes ? routes[iataCode] : null;
+
+      if (matchedRoutes && matchedRoutes.length > 0) {
+        let minRouteDist = Infinity, bestRoute = null;
+        for (const r of matchedRoutes) {
+          const depAp = resolveAirportInfo(r.src);
+          const arrAp = resolveAirportInfo(r.dst);
+          if (depAp && depAp.lat && arrAp && arrAp.lat) {
+            const d1 = distanceKm(lat, lon, depAp.lat, depAp.lon);
+            const d2 = distanceKm(lat, lon, arrAp.lat, arrAp.lon);
+            if (d1 + d2 < minRouteDist) {
+              minRouteDist = d1 + d2;
+              bestRoute = r;
+            }
+          }
+        }
+        if (bestRoute) {
+          depCode = depCode || bestRoute.src;
+          arrCode = arrCode || bestRoute.dst;
+        } else {
+          depCode = depCode || matchedRoutes[0].src;
+          arrCode = arrCode || matchedRoutes[0].dst;
+        }
+      }
+    }
   }
 
-  // 2. If 4-letter ICAO code format (e.g. LFxx, EGxx, EDxx, KJxx)
-  if (code.length === 4) {
-    const countryPrefix = code.substring(0, 2);
-    let countryName = 'International';
-    if (countryPrefix.startsWith('L')) countryName = 'Europe du Sud / France 🇪🇺';
-    else if (countryPrefix.startsWith('E')) countryName = 'Europe du Nord / UK 🇬🇧';
-    else if (countryPrefix.startsWith('K')) countryName = 'États-Unis 🇺🇸';
-    else if (countryPrefix.startsWith('C')) countryName = 'Canada 🇨🇦';
-    else if (countryPrefix.startsWith('Y')) countryName = 'Australie 🇦🇺';
-    else if (countryPrefix.startsWith('R') || countryPrefix.startsWith('Z')) countryName = 'Asie 🌏';
-    else if (countryPrefix.startsWith('O')) countryName = 'Moyen-Orient 🕌';
-
-    return {
-      iata: code,
-      name: `Aéroport International (${code})`,
-      city: `Aérodrome (${code})`,
-      country: countryName
-    };
+  if (!depCode || !arrCode) {
+    const inferred = inferRouteKinematic(lat, lon, heading);
+    depCode = depCode || inferred.dep;
+    arrCode = arrCode || inferred.arr;
   }
 
-  // 3. Airline Callsign Prefix Intelligence (AFR -> CDG, BAW -> LHR, DLH -> FRA, UAE -> DXB, etc.)
-  const cs = (callsign || '').toUpperCase();
-  if (category === 'commercial') {
-    if (cs.startsWith('AFR')) return isDeparture ? { iata: 'CDG', name: 'Aéroport Paris-Charles de Gaulle', city: 'Paris', country: 'France 🇫🇷' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-    if (cs.startsWith('BAW')) return isDeparture ? { iata: 'LHR', name: 'London Heathrow Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-    if (cs.startsWith('DLH')) return isDeparture ? { iata: 'FRA', name: 'Flughafen Frankfurt am Main', city: 'Francfort', country: 'Allemagne 🇩🇪' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-    if (cs.startsWith('UAE')) return isDeparture ? { iata: 'DXB', name: 'Dubai International Airport', city: 'Dubaï', country: 'Émirats Arabes Unis 🇦🇪' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-    if (cs.startsWith('AAL') || cs.startsWith('DAL') || cs.startsWith('UAL')) return isDeparture ? { iata: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York', country: 'États-Unis 🇺🇸' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-    if (cs.startsWith('IBE')) return isDeparture ? { iata: 'MAD', name: 'Aeropuerto Madrid-Barajas', city: 'Madrid', country: 'Espagne 🇪🇸' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
-  }
+  const depInfo = resolveAirportInfo(depCode) || { iata: 'DEP', name: 'Aéroport de Départ', city: 'Départ', country: 'International 🌐' };
+  const arrInfo = resolveAirportInfo(arrCode) || { iata: 'ARR', name: 'Aéroport d\'Arrivée', city: 'Arrivée', country: 'International 🌐' };
 
-  // 4. Category-Specific Structured Fallbacks
-  if (category === 'military') {
-    return isDeparture
-      ? { iata: 'MIL', name: 'Base Aérienne Militaire / Hangar Defense', city: 'Base Aérienne', country: 'Défense Militaire 🎖️' }
-      : { iata: 'PAT', name: 'Zone de Patrouille & Mission Tactique', city: 'Espace Aérien Protegé', country: 'Défense Militaire 🎖️' };
-  }
-
-  if (category === 'emergency') {
-    return isDeparture
-      ? { iata: 'HÉLI', name: 'Héliport d\'Urgence / Base SAMU-Dragon', city: 'Base Secours', country: 'Sécurité Civile 🚁' }
-      : { iata: 'SEC', name: 'Zone d\'Intervention Médicale / Hôpital', city: 'Secours', country: 'Sécurité Civile 🚁' };
-  }
-
-  if (category === 'private') {
-    return isDeparture
-      ? { iata: 'JET', name: 'Aérodrome d\'Affaires / Hangar VIP', city: 'Aviation Privée', country: 'Business Aviation 🛩️' }
-      : { iata: 'VIP', name: 'Espace Aérien Privé Executif', city: 'Destination Privée', country: 'Business Aviation 🛩️' };
-  }
-
-  // Generic Default
-  return isDeparture
-    ? { iata: 'DEP', name: 'Aéroport de Départ International', city: 'Départ', country: 'International 🌐' }
-    : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Arrivée', country: 'International 🌐' };
+  return { depInfo, arrInfo };
 }
 
     if (acMap.size > 0) {
       const flightFeatures = [];
+      await Promise.all([loadOpenFlightsRoutes(), loadOpenFlightsAirlines()]);
+
       for (const a of acMap.values()) {
         const callsign = (a.flight || a.r || 'N/A').trim();
         const altFt = typeof a.alt_baro === 'number' ? a.alt_baro : 10000;
@@ -593,12 +746,8 @@ function resolveAirportDetails(icaoCode, category, callsign, isDeparture) {
 
         const catInfo = getAircraftCategory(a);
 
-        // Resolve departure & arrival airport info using ICAO codes & intelligent fallbacks
-        const origIcao = a.orig_icao || a.orig || a.dep || null;
-        const destIcao = a.dest_icao || a.dest || a.arr || null;
-
-        const depInfo = resolveAirportDetails(origIcao, catInfo.category, callsign, true);
-        const arrInfo = resolveAirportDetails(destIcao, catInfo.category, callsign, false);
+        // Resolve departure & arrival airport info using 4-digit ICAO / 3-letter IATA & global_airports.json
+        const { depInfo, arrInfo } = await resolveFlightRouteAirports(a, catInfo.category, callsign);
 
         flightFeatures.push({
           type: 'Feature',
@@ -970,6 +1119,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, async () => {
     logger.info({ port: PORT }, `🔥 FireWatch RealTime Caching Server running on http://localhost:${PORT}`);
     await loadGlobalAirportsDb();
+    loadOpenFlightsAirlines().catch(e => logger.debug({ err: e.message }, 'Initial airlines DB load failed'));
     getOrUpdateData().catch(e => logger.error({ err: e.message }, 'Initial NASA FIRMS sync failed'));
     fetchUsgsEarthquakes().catch(e => logger.error({ err: e.message }, 'Initial USGS sync failed'));
     fetchOpenSkyFlights().catch(e => logger.error({ err: e.message }, 'Initial OpenSky sync failed'));
