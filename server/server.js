@@ -709,7 +709,11 @@ const flightRouteCache = new LRUCache({
 
 async function resolveFlightRouteAirports(a, category, callsign) {
   const cs = (callsign || '').trim().toUpperCase();
-  if (cs && cs !== 'N/A' && flightRouteCache.has(cs)) {
+  const isOnGround = Boolean(a.ground || a.on_ground);
+
+  if (isOnGround && cs && cs !== 'N/A') {
+    flightRouteCache.delete(cs);
+  } else if (cs && cs !== 'N/A' && flightRouteCache.has(cs)) {
     return flightRouteCache.get(cs);
   }
 
@@ -763,7 +767,7 @@ async function resolveFlightRouteAirports(a, category, callsign) {
   const arrInfo = resolveAirportInfo(arrCode) || { iata: 'ARR', name: 'Aéroport d\'Arrivée', city: 'Arrivée', country: 'International 🌐' };
 
   const result = { depInfo, arrInfo };
-  if (cs && cs !== 'N/A') {
+  if (!isOnGround && cs && cs !== 'N/A') {
     flightRouteCache.set(cs, result);
   }
 
