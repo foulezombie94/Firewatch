@@ -2,11 +2,17 @@ import React, { useState } from 'react';
 import { Flame, Layers, ChevronUp, ChevronDown, Activity, Plane, Radio, Compass, ShieldAlert, Cpu } from 'lucide-react';
 
 export const Legend: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+  const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'fires' | 'quakes' | 'flights'>('all');
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOpen(window.innerWidth >= 768);
+    }
+  }, []);
+
   return (
-    <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 z-30 pointer-events-auto max-w-[92vw] w-76 sm:w-88 transition-all duration-300 font-sans">
+    <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 z-20 md:z-30 pointer-events-auto max-w-[92vw] w-76 sm:w-88 transition-all duration-300 font-sans">
       <div className="bg-[#0e1014]/95 backdrop-blur-2xl rounded-2xl p-4 border border-[#21252d] shadow-2xl text-slate-100 transition-all duration-300">
         
         {/* Top Command Center Header */}

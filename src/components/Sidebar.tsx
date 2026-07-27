@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const totalCo2Estimate = topHotspots.reduce((sum, f) => sum + (f.properties.frp * 0.15), 0).toFixed(0);
 
   return (
-    <div className="fixed top-1/2 -translate-y-1/2 left-4 z-20 pointer-events-none flex items-start gap-3 font-sans">
+    <div className="fixed top-20 sm:top-1/2 sm:-translate-y-1/2 left-2 sm:left-4 z-40 pointer-events-none flex items-start gap-2.5 sm:gap-3 font-sans">
       
       {/* Left Dock Rail + Map Controls */}
       <div className="flex flex-col items-center gap-3">
@@ -169,7 +169,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Stacked Modular Tactical Cards Panel */}
       {activeWidget && (
-        <div className="pointer-events-auto w-80 sm:w-[350px] max-w-[85vw] space-y-2.5 text-slate-100 animate-in fade-in slide-in-from-left-3 duration-200 max-h-[82vh] overflow-y-auto custom-scrollbar">
+        <div className="pointer-events-auto w-[calc(100vw-4.5rem)] sm:w-[350px] max-w-sm space-y-2.5 text-slate-100 animate-in fade-in slide-in-from-left-3 duration-200 max-h-[75vh] sm:max-h-[82vh] overflow-y-auto custom-scrollbar">
+          
+          {/* Panel Close Header */}
+          <div className="flex items-center justify-between bg-[#0e1014]/95 border border-[#21252d] rounded-xl px-3 py-1.5 text-xs font-bold text-slate-300 shadow-md">
+            <span className="flex items-center gap-1.5 text-white font-mono text-[11px]">
+              <Sliders className="w-3.5 h-3.5 text-[#ff5500]" /> 
+              {activeWidget === 'filters' ? 'FILTRES & CALQUES' : activeWidget === 'top' ? 'TOP INCENDIES MAJEURS' : 'ANALYTIQUE & CO₂'}
+            </span>
+            <button
+              onClick={() => setActiveWidget(null)}
+              className="p-1 rounded-lg bg-[#161920] hover:bg-[#21252d] text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Fermer le panneau"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
           
           {/* WIDGET 1: FILTERS & NAVIGATION TREE */}
           {activeWidget === 'filters' && (
