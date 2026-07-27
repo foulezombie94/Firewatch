@@ -499,6 +499,129 @@ async function fetchOpenSkyFlights() {
       }
     }
 
+const AIRPORT_DB = {
+  'LFPG': { iata: 'CDG', name: 'Aéroport Paris-Charles de Gaulle', city: 'Paris', country: 'France 🇫🇷' },
+  'LFPO': { iata: 'ORY', name: 'Aéroport Paris-Orly', city: 'Paris', country: 'France 🇫🇷' },
+  'LFLL': { iata: 'LYS', name: 'Aéroport Lyon-Saint Exupéry', city: 'Lyon', country: 'France 🇫🇷' },
+  'LFML': { iata: 'MRS', name: 'Aéroport Marseille-Provence', city: 'Marseille', country: 'France 🇫🇷' },
+  'LFMN': { iata: 'NCE', name: 'Aéroport Nice Côte d\'Azur', city: 'Nice', country: 'France 🇫🇷' },
+  'LFBO': { iata: 'TLS', name: 'Aéroport Toulouse-Blagnac', city: 'Toulouse', country: 'France 🇫🇷' },
+  'LFBD': { iata: 'BOD', name: 'Aéroport Bordeaux-Mérignac', city: 'Bordeaux', country: 'France 🇫🇷' },
+  'LFQQ': { iata: 'LIL', name: 'Aéroport Lille-Lesquin', city: 'Lille', country: 'France 🇫🇷' },
+  'LFRS': { iata: 'NTE', name: 'Aéroport Nantes Atlantique', city: 'Nantes', country: 'France 🇫🇷' },
+  'LFKJ': { iata: 'AJA', name: 'Aéroport Ajaccio Napoléon Bonaparte', city: 'Ajaccio', country: 'France 🇫🇷' },
+  'LFKB': { iata: 'BIA', name: 'Aéroport Bastia-Poretta', city: 'Bastia', country: 'France 🇫🇷' },
+  'EGLL': { iata: 'LHR', name: 'London Heathrow Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
+  'EGKK': { iata: 'LGW', name: 'London Gatwick Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
+  'EGSS': { iata: 'STN', name: 'London Stansted Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' },
+  'EGCC': { iata: 'MAN', name: 'Manchester Airport', city: 'Manchester', country: 'Royaume-Uni 🇬🇧' },
+  'EGPH': { iata: 'EDI', name: 'Edinburgh Airport', city: 'Édimbourg', country: 'Royaume-Uni 🇬🇧' },
+  'EDDF': { iata: 'FRA', name: 'Flughafen Frankfurt am Main', city: 'Francfort', country: 'Allemagne 🇩🇪' },
+  'EDDM': { iata: 'MUC', name: 'Flughafen München', city: 'Munich', country: 'Allemagne 🇩🇪' },
+  'EDDB': { iata: 'BER', name: 'Flughafen Berlin Brandenburg', city: 'Berlin', country: 'Allemagne 🇩🇪' },
+  'EDDL': { iata: 'DUS', name: 'Flughafen Düsseldorf', city: 'Düsseldorf', country: 'Allemagne 🇩🇪' },
+  'LOWW': { iata: 'VIE', name: 'Flughafen Wien-Schwechat', city: 'Vienne', country: 'Autriche 🇦🇹' },
+  'LSZH': { iata: 'ZRH', name: 'Flughafen Zürich', city: 'Zurich', country: 'Suisse 🇨🇭' },
+  'LSGG': { iata: 'GVA', name: 'Aéroport de Genève', city: 'Genève', country: 'Suisse 🇨🇭' },
+  'EHAM': { iata: 'AMS', name: 'Amsterdam Airport Schiphol', city: 'Amsterdam', country: 'Pays-Bas 🇳🇱' },
+  'EBBR': { iata: 'BRU', name: 'Aéroport de Bruxelles-National', city: 'Bruxelles', country: 'Belgique 🇧🇪' },
+  'LEMD': { iata: 'MAD', name: 'Aeropuerto Adolfo Suárez Madrid-Barajas', city: 'Madrid', country: 'Espagne 🇪🇸' },
+  'LEBL': { iata: 'BCN', name: 'Aeropuerto Josep Tarradellas Barcelona-El Prat', city: 'Barcelone', country: 'Espagne 🇪🇸' },
+  'LEPA': { iata: 'PMI', name: 'Aeropuerto de Palma de Mallorca', city: 'Palma', country: 'Espagne 🇪🇸' },
+  'LPPT': { iata: 'LIS', name: 'Aeroporto de Lisboa', city: 'Lisbonne', country: 'Portugal 🇵🇹' },
+  'LIRF': { iata: 'FCO', name: 'Aeroporto di Roma-Fiumicino', city: 'Rome', country: 'Italie 🇮🇹' },
+  'LIMC': { iata: 'MXP', name: 'Aeroporto di Milano-Malpensa', city: 'Milan', country: 'Italie 🇮🇹' },
+  'LGAV': { iata: 'ATH', name: 'Athens International Airport', city: 'Athènes', country: 'Grèce 🇬🇷' },
+  'LTFM': { iata: 'IST', name: 'Istanbul Airport', city: 'Istanbul', country: 'Turquie 🇹🇷' },
+  'KJFK': { iata: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York', country: 'États-Unis 🇺🇸' },
+  'KEWR': { iata: 'EWR', name: 'Newark Liberty International Airport', city: 'Newark/NYC', country: 'États-Unis 🇺🇸' },
+  'KLAX': { iata: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'États-Unis 🇺🇸' },
+  'KORD': { iata: 'ORD', name: 'Chicago O\'Hare International Airport', city: 'Chicago', country: 'États-Unis 🇺🇸' },
+  'KATL': { iata: 'ATL', name: 'Hartsfield-Jackson Atlanta Int. Airport', city: 'Atlanta', country: 'États-Unis 🇺🇸' },
+  'KMIA': { iata: 'MIA', name: 'Miami International Airport', city: 'Miami', country: 'États-Unis 🇺🇸' },
+  'KSFO': { iata: 'SFO', name: 'San Francisco International Airport', city: 'San Francisco', country: 'États-Unis 🇺🇸' },
+  'CYYZ': { iata: 'YYZ', name: 'Toronto Pearson International Airport', city: 'Toronto', country: 'Canada 🇨🇦' },
+  'CYVR': { iata: 'YVR', name: 'Vancouver International Airport', city: 'Vancouver', country: 'Canada 🇨🇦' },
+  'SBGR': { iata: 'GRU', name: 'Aeroporto Internacional de São Paulo', city: 'São Paulo', country: 'Brésil 🇧🇷' },
+  'SAEZ': { iata: 'EZE', name: 'Aeropuerto Internacional Ezeiza', city: 'Buenos Aires', country: 'Argentine 🇦🇷' },
+  'OMDB': { iata: 'DXB', name: 'Dubai International Airport', city: 'Dubaï', country: 'Émirats Arabes Unis 🇦🇪' },
+  'OTHH': { iata: 'DOH', name: 'Hamad International Airport', city: 'Doha', country: 'Qatar 🇶🇦' },
+  'RJTT': { iata: 'HND', name: 'Tokyo Haneda Airport', city: 'Tokyo', country: 'Japon 🇯🇵' },
+  'VHHH': { iata: 'HKG', name: 'Hong Kong International Airport', city: 'Hong Kong', country: 'Chine 🇭🇰' },
+  'WSSS': { iata: 'SIN', name: 'Singapore Changi Airport', city: 'Singapour', country: 'Singapour 🇸🇬' },
+  'YSSY': { iata: 'SYD', name: 'Sydney Kingsford Smith Airport', city: 'Sydney', country: 'Australie 🇦🇺' },
+};
+
+function resolveAirportDetails(icaoCode, category, callsign, isDeparture) {
+  const code = (icaoCode || '').trim().toUpperCase();
+
+  // 1. Direct ICAO Airport Lookup
+  if (code && AIRPORT_DB[code]) {
+    const info = AIRPORT_DB[code];
+    return {
+      iata: info.iata,
+      name: info.name,
+      city: info.city,
+      country: info.country
+    };
+  }
+
+  // 2. If 4-letter ICAO code format (e.g. LFxx, EGxx, EDxx, KJxx)
+  if (code.length === 4) {
+    const countryPrefix = code.substring(0, 2);
+    let countryName = 'International';
+    if (countryPrefix.startsWith('L')) countryName = 'Europe du Sud / France 🇪🇺';
+    else if (countryPrefix.startsWith('E')) countryName = 'Europe du Nord / UK 🇬🇧';
+    else if (countryPrefix.startsWith('K')) countryName = 'États-Unis 🇺🇸';
+    else if (countryPrefix.startsWith('C')) countryName = 'Canada 🇨🇦';
+    else if (countryPrefix.startsWith('Y')) countryName = 'Australie 🇦🇺';
+    else if (countryPrefix.startsWith('R') || countryPrefix.startsWith('Z')) countryName = 'Asie 🌏';
+    else if (countryPrefix.startsWith('O')) countryName = 'Moyen-Orient 🕌';
+
+    return {
+      iata: code,
+      name: `Aéroport International (${code})`,
+      city: `Aérodrome (${code})`,
+      country: countryName
+    };
+  }
+
+  // 3. Airline Callsign Prefix Intelligence (AFR -> CDG, BAW -> LHR, DLH -> FRA, UAE -> DXB, etc.)
+  const cs = (callsign || '').toUpperCase();
+  if (category === 'commercial') {
+    if (cs.startsWith('AFR')) return isDeparture ? { iata: 'CDG', name: 'Aéroport Paris-Charles de Gaulle', city: 'Paris', country: 'France 🇫🇷' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+    if (cs.startsWith('BAW')) return isDeparture ? { iata: 'LHR', name: 'London Heathrow Airport', city: 'Londres', country: 'Royaume-Uni 🇬🇧' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+    if (cs.startsWith('DLH')) return isDeparture ? { iata: 'FRA', name: 'Flughafen Frankfurt am Main', city: 'Francfort', country: 'Allemagne 🇩🇪' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+    if (cs.startsWith('UAE')) return isDeparture ? { iata: 'DXB', name: 'Dubai International Airport', city: 'Dubaï', country: 'Émirats Arabes Unis 🇦🇪' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+    if (cs.startsWith('AAL') || cs.startsWith('DAL') || cs.startsWith('UAL')) return isDeparture ? { iata: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York', country: 'États-Unis 🇺🇸' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+    if (cs.startsWith('IBE')) return isDeparture ? { iata: 'MAD', name: 'Aeropuerto Madrid-Barajas', city: 'Madrid', country: 'Espagne 🇪🇸' } : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Destination', country: 'International 🌐' };
+  }
+
+  // 4. Category-Specific Structured Fallbacks
+  if (category === 'military') {
+    return isDeparture
+      ? { iata: 'MIL', name: 'Base Aérienne Militaire / Hangar Defense', city: 'Base Aérienne', country: 'Défense Militaire 🎖️' }
+      : { iata: 'PAT', name: 'Zone de Patrouille & Mission Tactique', city: 'Espace Aérien Protegé', country: 'Défense Militaire 🎖️' };
+  }
+
+  if (category === 'emergency') {
+    return isDeparture
+      ? { iata: 'HÉLI', name: 'Héliport d\'Urgence / Base SAMU-Dragon', city: 'Base Secours', country: 'Sécurité Civile 🚁' }
+      : { iata: 'SEC', name: 'Zone d\'Intervention Médicale / Hôpital', city: 'Secours', country: 'Sécurité Civile 🚁' };
+  }
+
+  if (category === 'private') {
+    return isDeparture
+      ? { iata: 'JET', name: 'Aérodrome d\'Affaires / Hangar VIP', city: 'Aviation Privée', country: 'Business Aviation 🛩️' }
+      : { iata: 'VIP', name: 'Espace Aérien Privé Executif', city: 'Destination Privée', country: 'Business Aviation 🛩️' };
+  }
+
+  // Generic Default
+  return isDeparture
+    ? { iata: 'DEP', name: 'Aéroport de Départ International', city: 'Départ', country: 'International 🌐' }
+    : { iata: 'ARR', name: 'Aéroport d\'Arrivée Internationale', city: 'Arrivée', country: 'International 🌐' };
+}
+
     if (acMap.size > 0) {
       const flightFeatures = [];
       for (const a of acMap.values()) {
@@ -509,6 +632,13 @@ async function fetchOpenSkyFlights() {
         const originCountry = a.t ? `Avion (${a.t})` : 'International';
 
         const catInfo = getAircraftCategory(a);
+
+        // Resolve departure & arrival airport info using ICAO codes & intelligent fallbacks
+        const origIcao = a.orig_icao || a.orig || a.dep || null;
+        const destIcao = a.dest_icao || a.dest || a.arr || null;
+
+        const depInfo = resolveAirportDetails(origIcao, catInfo.category, callsign, true);
+        const arrInfo = resolveAirportDetails(destIcao, catInfo.category, callsign, false);
 
         flightFeatures.push({
           type: 'Feature',
@@ -529,14 +659,14 @@ async function fetchOpenSkyFlights() {
             color: catInfo.color,
             model_type: a.t || 'N/A',
             registration: a.r || 'N/A',
-            dep_iata: 'DEP',
-            dep_name: `Aéroport (${originCountry})`,
-            dep_city: originCountry,
-            dep_country: originCountry,
-            arr_iata: 'ARR',
-            arr_name: 'Trajectoire Internationale',
-            arr_city: 'En Vol',
-            arr_country: 'International'
+            dep_iata: depInfo.iata,
+            dep_name: depInfo.name,
+            dep_city: depInfo.city,
+            dep_country: depInfo.country,
+            arr_iata: arrInfo.iata,
+            arr_name: arrInfo.name,
+            arr_city: arrInfo.city,
+            arr_country: arrInfo.country
           }
         });
       }

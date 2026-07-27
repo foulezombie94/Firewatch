@@ -851,7 +851,23 @@ export const Map: React.FC<MapProps> = ({
 
         ensureAirplaneImage(map);
 
-        if (map.hasImage('airplane-icon')) {
+          // Invisible enlarged hit-target layer to make clicking airplanes 100% easy and responsive
+          if (!map.getLayer('flights-hit-target')) {
+            map.addLayer({
+              id: 'flights-hit-target',
+              type: 'circle',
+              source: 'flights-source',
+              layout: {
+                visibility: showFlights ? 'visible' : 'none',
+              },
+              paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 12, 5, 16, 10, 22],
+                'circle-color': '#000000',
+                'circle-opacity': 0,
+              },
+            });
+          }
+
           map.addLayer({
             id: 'flights-point',
             type: 'symbol',
@@ -874,27 +890,47 @@ export const Map: React.FC<MapProps> = ({
             },
           });
 
-          map.on('click', 'flights-point', (e) => {
+          const handleFlightClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
             if (!isMapStyleReady(map)) return;
             if (!e.features || !e.features.length) return;
-            const feature = e.features[0] as unknown as FlightFeature;
-            if (onInspectFlight) {
-              onInspectFlight(feature);
-            }
-          });
+            const feat = e.features[0];
+            const props = (feat as any).properties || {};
+            const icao = props.icao24;
 
-          map.on('mouseenter', 'flights-point', () => {
+            // Match full FlightFeature from flightStateRef by icao24
+            let targetFeature: FlightFeature | null = null;
+            if (icao && flightStateRef.current.has(icao)) {
+              targetFeature = flightStateRef.current.get(icao)?.feature || null;
+            }
+
+            if (!targetFeature) {
+              targetFeature = feat as unknown as FlightFeature;
+            }
+
+            if (onInspectFlight && targetFeature) {
+              onInspectFlight(targetFeature);
+            }
+          };
+
+          map.on('click', 'flights-point', handleFlightClick);
+          map.on('click', 'flights-hit-target', handleFlightClick);
+
+          const handleFlightEnter = () => {
             try {
               if (isMapStyleReady(map)) map.getCanvas().style.cursor = 'pointer';
             } catch (err) {}
-          });
-          map.on('mouseleave', 'flights-point', () => {
+          };
+          const handleFlightLeave = () => {
             try {
               if (map.getCanvas()) map.getCanvas().style.cursor = '';
             } catch (err) {}
-          });
+          };
+
+          map.on('mouseenter', 'flights-point', handleFlightEnter);
+          map.on('mouseenter', 'flights-hit-target', handleFlightEnter);
+          map.on('mouseleave', 'flights-point', handleFlightLeave);
+          map.on('mouseleave', 'flights-hit-target', handleFlightLeave);
         }
-      }
     } catch (err) {}
   };
 
