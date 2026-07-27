@@ -851,7 +851,7 @@ export const Map: React.FC<MapProps> = ({
 
         ensureAirplaneImage(map);
 
-          // Invisible enlarged hit-target layer to make clicking airplanes 100% easy and responsive
+          // Invisible enlarged hit-target layer to make clicking airplanes 100% easy at ANY zoom level
           if (!map.getLayer('flights-hit-target')) {
             map.addLayer({
               id: 'flights-hit-target',
@@ -861,7 +861,7 @@ export const Map: React.FC<MapProps> = ({
                 visibility: showFlights ? 'visible' : 'none',
               },
               paint: {
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 12, 5, 16, 10, 22],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 18, 5, 22, 10, 28],
                 'circle-color': '#000000',
                 'circle-opacity': 0,
               },
@@ -882,7 +882,7 @@ export const Map: React.FC<MapProps> = ({
                 'emergency', 'airplane-icon-emergency',
                 'airplane-icon-commercial'
               ],
-              'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.45, 5, 0.7, 10, 1.0],
+              'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.55, 5, 0.8, 10, 1.1],
               'icon-rotate': ['coalesce', ['get', 'heading'], 0],
               'icon-rotation-alignment': 'map',
               'icon-allow-overlap': true,
@@ -890,30 +890,51 @@ export const Map: React.FC<MapProps> = ({
             },
           });
 
-          const handleFlightClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+          const handleFlightClick = (e: mapboxgl.MapMouseEvent) => {
             if (!isMapStyleReady(map)) return;
-            if (!e.features || !e.features.length) return;
-            const feat = e.features[0];
-            const props = (feat as any).properties || {};
-            const icao = props.icao24;
+            
+            // 30x30px bounding box query around click point for instant capture even when zoomed out
+            const bbox: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+              [e.point.x - 15, e.point.y - 15],
+              [e.point.x + 15, e.point.y + 15]
+            ];
 
-            // Match full FlightFeature from flightStateRef by icao24
-            let targetFeature: FlightFeature | null = null;
-            if (icao && flightStateRef.current.has(icao)) {
-              targetFeature = flightStateRef.current.get(icao)?.feature || null;
-            }
+            const layersToQuery = [];
+            if (map.getLayer('flights-point')) layersToQuery.push('flights-point');
+            if (map.getLayer('flights-hit-target')) layersToQuery.push('flights-hit-target');
 
-            if (!targetFeature) {
-              targetFeature = feat as unknown as FlightFeature;
-            }
+            if (!layersToQuery.length) return;
 
-            if (onInspectFlight && targetFeature) {
-              onInspectFlight(targetFeature);
+            const features = map.queryRenderedFeatures(bbox, { layers: layersToQuery });
+
+            if (features && features.length > 0) {
+              const feat = features[0];
+              const props = (feat as any).properties || {};
+              const icao = props.icao24;
+
+              // Match full FlightFeature from flightStateRef by icao24
+              let targetFeature: FlightFeature | null = null;
+              if (icao && flightStateRef.current.has(icao)) {
+                targetFeature = flightStateRef.current.get(icao)?.feature || null;
+              }
+
+              if (!targetFeature) {
+                targetFeature = feat as unknown as FlightFeature;
+              }
+
+              if (onInspectFlight && targetFeature) {
+                onInspectFlight(targetFeature);
+                if (e.originalEvent) {
+                  e.originalEvent.preventDefault();
+                }
+              }
             }
           };
 
           map.on('click', 'flights-point', handleFlightClick);
           map.on('click', 'flights-hit-target', handleFlightClick);
+          map.on('contextmenu', 'flights-point', handleFlightClick);
+          map.on('contextmenu', 'flights-hit-target', handleFlightClick);
 
           const handleFlightEnter = () => {
             try {
