@@ -249,7 +249,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <Compass className="w-3 h-3 text-amber-400" /> Cap / Bearing
             </div>
             <div className="text-sm font-bold text-amber-300 flex items-center gap-1">
-              {flightProps.heading}° <span className="text-xs font-bold text-amber-400/80">({getCompassDirection(flightProps.heading)})</span>
+              {heading}° <span className="text-xs font-bold text-amber-400/80">({getCompassDirection(heading)})</span>
             </div>
             <div className="text-[9px] text-slate-400">
               Orientation Réelle
