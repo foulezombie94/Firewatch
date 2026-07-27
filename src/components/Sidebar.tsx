@@ -167,9 +167,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Stacked Modular Tactical Cards Panel (Exact Layout from User Screenshot) */}
+      {/* Stacked Modular Tactical Cards Panel */}
       {activeWidget && (
-        <div className="pointer-events-auto w-84 sm:w-[350px] space-y-2.5 text-slate-100 animate-in fade-in slide-in-from-left-3 duration-200">
+        <div className="pointer-events-auto w-80 sm:w-[350px] max-w-[85vw] space-y-2.5 text-slate-100 animate-in fade-in slide-in-from-left-3 duration-200 max-h-[82vh] overflow-y-auto custom-scrollbar">
           
           {/* WIDGET 1: FILTERS & NAVIGATION TREE */}
           {activeWidget === 'filters' && (

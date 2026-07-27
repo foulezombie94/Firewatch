@@ -83,7 +83,7 @@ export const FireInspector: React.FC<FireInspectorProps> = ({
       : { text: 'Confiance Nominale', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
 
   return (
-    <aside className="fixed top-20 right-4 z-40 w-80 sm:w-96 bg-[#0e1014]/95 backdrop-blur-2xl text-slate-100 rounded-2xl p-4 border border-[#21252d] shadow-2xl animate-in slide-in-from-right-3 duration-200 pointer-events-auto font-sans">
+    <aside className="fixed top-20 right-2 sm:right-6 z-40 w-80 sm:w-96 max-w-[92vw] max-h-[82vh] overflow-y-auto custom-scrollbar bg-[#0e1014]/95 backdrop-blur-2xl text-slate-100 rounded-2xl p-4 border border-[#21252d] shadow-2xl animate-in slide-in-from-right-3 duration-200 pointer-events-auto font-sans">
       {/* Header */}
       <div className="flex items-start justify-between pb-3 border-b border-[#21252d]">
         <div className="flex items-center gap-3">
