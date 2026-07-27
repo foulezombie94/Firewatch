@@ -664,20 +664,37 @@ app.get('/api/fires', async (req, res) => {
       : Date.now();
     const cutoffTimestamp = latestTimestamp - (hours * 3600 * 1000);
 
-    const filteredFeatures = data.features.filter(f => {
+    const filteredFeatures = [];
+    for (const f of data.features) {
       const p = f.properties;
-      if (p.timestamp < cutoffTimestamp) return false;
-      if (p.frp < minFrp) return false;
+      if (p.timestamp < cutoffTimestamp) continue;
+      if (p.frp < minFrp) continue;
       if (sensor !== 'all') {
-        if (sensor === 'viirs' && !p.satellite.includes('VIIRS')) return false;
-        if (sensor === 'modis' && !p.satellite.includes('MODIS')) return false;
+        if (sensor === 'viirs' && !p.satellite.includes('VIIRS')) continue;
+        if (sensor === 'modis' && !p.satellite.includes('MODIS')) continue;
       }
-      return true;
-    });
+
+      // Optimize payload size: round coordinates to 4 decimal places (~11m precision)
+      const coords = f.geometry.coordinates;
+      filteredFeatures.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [
+            Math.round(coords[0] * 10000) / 10000,
+            Math.round(coords[1] * 10000) / 10000
+          ]
+        },
+        properties: p
+      });
+    }
 
     const now = Date.now();
     const nextSyncTimestamp = Math.ceil(now / TWO_HOURS_MS) * TWO_HOURS_MS;
     const remainingSeconds = Math.max(0, Math.floor((nextSyncTimestamp - now) / 1000));
+
+    // Optimize Vercel Edge Cache: 30 minutes cache for static 2-hour satellite fire data
+    res.setHeader('Cache-Control', 'public, max-age=600, s-maxage=1800, stale-while-revalidate=3600');
 
     res.json({
       type: 'FeatureCollection',
@@ -701,6 +718,7 @@ app.get('/api/earthquakes', async (req, res) => {
     if (!quakesMemoryCache.geoJson || (Date.now() - quakesMemoryCache.lastUpdated > TWO_HOURS_MS)) {
       await fetchUsgsEarthquakes();
     }
+    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=300, stale-while-revalidate=600');
     res.json(quakesMemoryCache.geoJson || { type: 'FeatureCollection', features: [] });
   } catch (err) {
     logger.error({ err: err.message }, 'Failed to fetch USGS earthquakes');

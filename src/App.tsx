@@ -102,14 +102,14 @@ export const App: React.FC = () => {
     flights: 'loading',
   });
 
-  // Initial & progressive background fetch — render data on map instantly as each API responds!
-  const fetchData = useCallback(async () => {
+  // Initial & progressive background fetch with AbortController support
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setError(null);
 
     setServiceStatus({ fires: 'loading', earthquakes: 'loading', flights: 'loading' });
 
     // 1. 🔥 NASA FIRMS — Fires (Primary Data Source)
-    const fetchFires = fetch('/api/fires?hours=24&min_frp=0&sensor=all')
+    const fetchFires = fetch('/api/fires?hours=24&min_frp=0&sensor=all', { signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('Fires error');
         const data: FireGeoJSON = await res.json();
@@ -120,16 +120,17 @@ export const App: React.FC = () => {
         }
         setServiceStatus(prev => ({ ...prev, fires: 'ok' }));
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
         setServiceStatus(prev => ({ ...prev, fires: 'error' }));
         setError('Impossible de contacter le serveur NASA FIRMS. Les données incendies sont temporairement indisponibles.');
       })
       .finally(() => {
-        setIsLoading(false); // Hide main loading spinner as soon as primary fire data arrives!
+        setIsLoading(false);
       });
 
     // 2. 🌍 USGS — Earthquakes (Progressive Parallel Load)
-    const fetchQuakes = fetch('/api/earthquakes')
+    const fetchQuakes = fetch('/api/earthquakes', { signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('Quakes error');
         const qData: EarthquakeGeoJSON = await res.json();
@@ -137,19 +138,21 @@ export const App: React.FC = () => {
         setCachedGeoJSON('firewatch_cached_quakes', qData);
         setServiceStatus(prev => ({ ...prev, earthquakes: 'ok' }));
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
         setServiceStatus(prev => ({ ...prev, earthquakes: 'error' }));
       });
 
     // 3. ✈️ OpenSky — Flights (Progressive Parallel Load)
-    const fetchFlights = fetch('/api/flights')
+    const fetchFlights = fetch('/api/flights', { signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('Flights error');
         const flData: FlightGeoJSON = await res.json();
         setFlightsGeoJson(flData);
         setServiceStatus(prev => ({ ...prev, flights: 'ok' }));
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
         setServiceStatus(prev => ({ ...prev, flights: 'error' }));
       });
 
@@ -157,11 +160,13 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
 
-    // 15-Second Ultra-Fast Real-Time Flight Radar Auto-Sync with ADSB!
-    const flightInterval = setInterval(() => {
-      fetch('/api/flights')
+    // Helper to fetch flight updates only when tab is visible
+    const updateFlightsIfVisible = () => {
+      if (document.hidden) return; // Pause polling when tab is inactive/hidden!
+      fetch('/api/flights', { signal: controller.signal })
         .then(async (res) => {
           if (res.ok) {
             const flData: FlightGeoJSON = await res.json();
@@ -169,9 +174,25 @@ export const App: React.FC = () => {
           }
         })
         .catch(() => {});
-    }, 15000);
+    };
 
-    return () => clearInterval(flightInterval);
+    // 15-Second Ultra-Fast Real-Time Flight Radar Auto-Sync
+    const flightInterval = setInterval(updateFlightsIfVisible, 15000);
+
+    // Immediately sync flights when user returns to tab!
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        updateFlightsIfVisible();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      controller.abort();
+      clearInterval(flightInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchData]);
 
   // Instantaneous 0ms Client-Side In-Memory Filtering for Fire Time Period, FRP, Sensor & Confidence!
