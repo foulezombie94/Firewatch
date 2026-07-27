@@ -703,7 +703,8 @@ async function fetchAdsbFlights() {
 
 const flightRouteCache = new LRUCache({
   max: 10000,
-  ttl: 2 * 60 * 60 * 1000 // 2 Hours TTL
+  ttl: 6 * 60 * 60 * 1000, // 6 Hours TTL for long-haul flights
+  updateAgeOnGet: true // Refresh TTL automatically as long as plane keeps flying
 });
 
 async function resolveFlightRouteAirports(a, category, callsign) {
