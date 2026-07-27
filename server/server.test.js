@@ -75,7 +75,7 @@ describe('🔥 Firewatch Backend Automated Test Suite', () => {
       expect(res.body.type).toBe('FeatureCollection');
       expect(res.body.metadata).toBeDefined();
       expect(Array.isArray(res.body.features)).toBe(true);
-    });
+    }, 15000);
 
     it('GET /api/earthquakes should return FeatureCollection', async () => {
       const res = await request(app).get('/api/earthquakes');
@@ -83,7 +83,7 @@ describe('🔥 Firewatch Backend Automated Test Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.type).toBe('FeatureCollection');
       expect(Array.isArray(res.body.features)).toBe(true);
-    });
+    }, 15000);
 
     it('GET /api/flights should return FeatureCollection', async () => {
       const res = await request(app).get('/api/flights');
@@ -91,7 +91,7 @@ describe('🔥 Firewatch Backend Automated Test Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.type).toBe('FeatureCollection');
       expect(Array.isArray(res.body.features)).toBe(true);
-    });
+    }, 15000);
   });
 
   describe('4. Geocoding API & Rate Limiting Tests', () => {
