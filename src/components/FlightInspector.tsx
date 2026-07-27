@@ -32,13 +32,21 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   onClose,
   onFlyToFlight,
 }) => {
-  const [lon, lat, rawAltM] = coordinates;
+  // Early safety guard against missing or malformed props
+  if (!flightProps || !coordinates || !Array.isArray(coordinates)) {
+    return null;
+  }
+
+  const lon = Number(coordinates[0] ?? 0);
+  const lat = Number(coordinates[1] ?? 0);
+  const rawAltM = Number(coordinates[2] ?? 0);
 
   // Safe Fallback Numbers
   const altM = Math.round(flightProps.altitude_m ?? rawAltM ?? 0);
   const altFt = Math.round(flightProps.altitude_ft ?? (altM * 3.28084));
   const velocityKmh = Math.round(flightProps.velocity_kmh ?? 0);
   const knots = Math.round(velocityKmh / 1.852);
+  const heading = Math.round(flightProps.heading ?? 0);
 
   // Dynamic ISA (International Standard Atmosphere) Speed of Sound & Mach calculation
   // At Sea Level (0m): ~1225.0 km/h | At Tropopause (11000m+): ~1062.2 km/h
@@ -79,7 +87,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
 
   const getCompassDirection = (deg: number) => {
     const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    const idx = Math.round(deg / 22.5) % 16;
+    const idx = Math.round((deg || 0) / 22.5) % 16;
     return directions[idx] || 'N';
   };
 
@@ -91,8 +99,11 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   const arrCity = flightProps.arr_city || 'Destination';
   const arrName = flightProps.arr_name || 'En cours de vol';
 
+  const rawColor = flightProps.color || '#38bdf8';
+  const badgeColor = typeof rawColor === 'string' && rawColor.startsWith('#') && rawColor.length === 7 ? rawColor : '#38bdf8';
+
   return (
-    <div className="fixed top-20 right-6 z-30 pointer-events-auto w-96 max-w-[92vw] animate-in fade-in slide-in-from-right-3 duration-200 font-sans">
+    <div className="fixed top-20 right-2 sm:right-6 z-30 pointer-events-auto w-88 sm:w-96 max-w-[92vw] animate-in fade-in slide-in-from-right-3 duration-200 font-sans">
       <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5 max-h-[82vh] overflow-y-auto custom-scrollbar">
         {/* Header Bar */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -109,9 +120,9 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
                   <span 
                     className="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider border shadow-sm"
                     style={{
-                      backgroundColor: `${flightProps.color || '#38bdf8'}20`,
-                      borderColor: `${flightProps.color || '#38bdf8'}50`,
-                      color: flightProps.color || '#38bdf8'
+                      backgroundColor: `${badgeColor}20`,
+                      borderColor: `${badgeColor}50`,
+                      color: badgeColor
                     }}
                   >
                     {flightProps.flight_type}

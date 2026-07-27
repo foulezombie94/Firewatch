@@ -493,11 +493,11 @@ export const App: React.FC = () => {
       )}
 
       {/* Active Aircraft Detail Inspector Modal */}
-      {inspectedFlight && (
+      {inspectedFlight && inspectedFlight.feature && inspectedFlight.feature.properties && (
         <FlightInspector
-          key={inspectedFlight.feature.properties.icao24 || inspectedFlight.feature.properties.callsign || inspectedFlight.coords.join(',')}
+          key={inspectedFlight.feature.properties.icao24 || inspectedFlight.feature.properties.callsign || (inspectedFlight.coords ? inspectedFlight.coords.join(',') : Math.random())}
           flightProps={inspectedFlight.feature.properties}
-          coordinates={inspectedFlight.coords}
+          coordinates={inspectedFlight.coords || [0, 0, 0]}
           onClose={() => setInspectedFlight(null)}
           onFlyToFlight={(c) => {
             setCameraPreset({ id: 'custom', name: 'Flight', center: c, zoom: 9, pitch: 35 });
