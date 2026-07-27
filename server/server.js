@@ -123,6 +123,7 @@ let memoryCache = { lastUpdated: 0, geoJson: null };
 let quakesMemoryCache = { lastUpdated: 0, geoJson: null };
 let flightsMemoryCache = { lastUpdated: 0, geoJson: null };
 let globalAirportsDb = {};
+let globalAirportsIataDb = {};
 
 const COUNTRY_FLAGS = {
   FR: 'France 🇫🇷', US: 'États-Unis 🇺🇸', MA: 'Maroc 🇲🇦', DZ: 'Algérie 🇩🇿', TN: 'Tunisie 🇹🇳',
@@ -133,13 +134,23 @@ const COUNTRY_FLAGS = {
   CA: 'Canada 🇨🇦', BR: 'Brésil 🇧🇷', AU: 'Australie 🇦🇺', SG: 'Singapour 🇸🇬', MX: 'Mexique 🇲🇽'
 };
 
+function indexAirportsByIata() {
+  globalAirportsIataDb = {};
+  for (const info of Object.values(globalAirportsDb)) {
+    if (info.iata && typeof info.iata === 'string') {
+      globalAirportsIataDb[info.iata.trim().toUpperCase()] = info;
+    }
+  }
+}
+
 // Load 29,300+ Global Airports Database
 async function loadGlobalAirportsDb() {
   if (fs.existsSync(GLOBAL_AIRPORTS_FILE)) {
     try {
       const content = fs.readFileSync(GLOBAL_AIRPORTS_FILE, 'utf8');
       globalAirportsDb = JSON.parse(content);
-      logger.info({ count: Object.keys(globalAirportsDb).length }, '[Airports DB] Loaded global airports from local disk cache.');
+      indexAirportsByIata();
+      logger.info({ count: Object.keys(globalAirportsDb).length, iataCount: Object.keys(globalAirportsIataDb).length }, '[Airports DB] Loaded global airports from local disk cache with dual O(1) index.');
       return;
     } catch (e) {
       logger.warn({ err: e.message }, '[Airports DB] Local cache file read failed, falling back to download');
@@ -151,8 +162,9 @@ async function loadGlobalAirportsDb() {
     const res = await fetch('https://cdn.jsdelivr.net/gh/mwgg/Airports@master/airports.json');
     if (res.ok) {
       globalAirportsDb = await res.json();
+      indexAirportsByIata();
       fs.writeFileSync(GLOBAL_AIRPORTS_FILE, JSON.stringify(globalAirportsDb), 'utf8');
-      logger.info({ count: Object.keys(globalAirportsDb).length }, '[Airports DB] Successfully downloaded & cached global airports.');
+      logger.info({ count: Object.keys(globalAirportsDb).length, iataCount: Object.keys(globalAirportsIataDb).length }, '[Airports DB] Successfully downloaded & cached global airports with dual O(1) index.');
     }
   } catch (err) {
     logger.error({ err: err.message }, '[Airports DB] Failed to fetch global airports');
@@ -502,9 +514,9 @@ async function fetchOpenSkyFlights() {
 function resolveAirportDetails(icaoCode, category, callsign, isDeparture) {
   const code = (icaoCode || '').trim().toUpperCase();
 
-  // 1. Direct Lookup in 29,300+ Global Airports Database (global_airports.json)
-  if (code && globalAirportsDb && globalAirportsDb[code]) {
-    const info = globalAirportsDb[code];
+  // 1. Direct O(1) Lookup in 29,300+ Global Airports Database (global_airports.json)
+  const info = (code && globalAirportsDb[code]) || (code && globalAirportsIataDb[code]);
+  if (info) {
     const countryFlag = COUNTRY_FLAGS[info.country] || info.country || 'International 🌐';
     return {
       iata: info.iata || info.icao || code,
