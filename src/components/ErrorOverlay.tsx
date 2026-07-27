@@ -17,7 +17,7 @@ interface ErrorOverlayProps {
 const serviceConfig: Record<string, { label: string; icon: string; desc: string }> = {
   fires: { label: 'NASA FIRMS', icon: '🔥', desc: 'Détection incendies par satellite' },
   earthquakes: { label: 'USGS Earthquake', icon: '🌍', desc: 'Séismes mondiaux en temps réel' },
-  flights: { label: 'OpenSky Network', icon: '✈️', desc: 'Trafic aérien mondial' },
+  flights: { label: 'Radar ADS-B Live', icon: '✈️', desc: 'Trafic aérien mondial en direct' },
 };
 
 // Floating ember particle component

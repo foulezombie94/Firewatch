@@ -144,7 +144,7 @@ export const App: React.FC = () => {
         setServiceStatus(prev => ({ ...prev, earthquakes: 'error' }));
       });
 
-    // 3. ✈️ OpenSky — Flights (Progressive Parallel Load)
+    // 3. ✈️ ADSB Radar — Flights (Progressive Parallel Load)
     const fetchFlights = fetch('/api/flights', { signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('Flights error');

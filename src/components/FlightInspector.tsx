@@ -15,9 +15,12 @@ import {
   Wind,
   PlaneTakeoff,
   PlaneLanding,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert,
+  Building2
 } from 'lucide-react';
 import { FlightProperties } from '../types';
+import { getCleanAirportInfo, getAirlineFromCallsign } from '../utils/airports';
 
 interface FlightInspectorProps {
   flightProps: FlightProperties;
@@ -48,8 +51,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   const knots = Math.round(velocityKmh / 1.852);
   const heading = Math.round(flightProps.heading ?? 0);
 
-  // Dynamic ISA (International Standard Atmosphere) Speed of Sound & Mach calculation
-  // At Sea Level (0m): ~1225.0 km/h | At Tropopause (11000m+): ~1062.2 km/h
+  // Dynamic ISA Speed of Sound & Mach calculation
   const tempK = altM >= 11000 ? 216.65 : Math.max(216.65, 288.15 - 0.0065 * altM);
   const speedOfSoundKmh = 3.6 * Math.sqrt(1.4 * 287.05 * tempK);
   const mach = velocityKmh > 0 ? (velocityKmh / speedOfSoundKmh).toFixed(2) : '0.00';
@@ -70,7 +72,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
     vertColor = 'text-amber-400';
   }
 
-  // Normalized Squawk checking (supports both String and Number types)
+  // Emergency Squawk status
   const squawkStr = String(flightProps.squawk ?? '').trim();
   let isEmergency = false;
   let emergencyLabel = 'Normal';
@@ -91,15 +93,23 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
     return directions[idx] || 'N';
   };
 
-  const depIata = flightProps.dep_iata || 'DEP';
-  const depCity = flightProps.dep_city || flightProps.origin_country || 'Départ';
-  const depName = flightProps.dep_name || `Aéroport de Départ (${flightProps.origin_country || 'Intl'})`;
-  const depCountry = flightProps.dep_country || '';
+  // Clean & Enrich Departure / Arrival Airport Information
+  const depInfo = getCleanAirportInfo(
+    flightProps.dep_iata,
+    flightProps.dep_city,
+    flightProps.dep_name,
+    flightProps.dep_country
+  );
 
-  const arrIata = flightProps.arr_iata || 'ARR';
-  const arrCity = flightProps.arr_city || 'Arrivée';
-  const arrName = flightProps.arr_name || 'En cours de vol';
-  const arrCountry = flightProps.arr_country || '';
+  const arrInfo = getCleanAirportInfo(
+    flightProps.arr_iata,
+    flightProps.arr_city,
+    flightProps.arr_name,
+    flightProps.arr_country
+  );
+
+  // Airline resolution
+  const airlineInfo = getAirlineFromCallsign(flightProps.callsign);
 
   const rawColor = flightProps.color || '#38bdf8';
   const badgeColor = typeof rawColor === 'string' && rawColor.startsWith('#') && rawColor.length === 7 ? rawColor : '#38bdf8';
@@ -107,6 +117,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
   return (
     <div className="fixed top-20 right-2 sm:right-6 z-30 pointer-events-auto w-88 sm:w-96 max-w-[92vw] animate-in fade-in slide-in-from-right-3 duration-200 font-sans">
       <div className="bg-slate-950/90 backdrop-blur-3xl rounded-3xl border border-slate-800/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 text-slate-100 space-y-3.5 max-h-[82vh] overflow-y-auto custom-scrollbar min-w-0">
+        
         {/* Header Bar */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 min-w-0 gap-2">
           <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
@@ -115,7 +126,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
             </div>
             <div className="min-w-0 overflow-hidden">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <h3 className="font-extrabold text-base text-white font-mono tracking-tight leading-none truncate max-w-[180px]" title={flightProps.callsign || 'VOL SANS INDICATIF'}>
+                <h3 className="font-extrabold text-base text-white font-mono tracking-tight leading-none truncate max-w-[170px]" title={flightProps.callsign || 'VOL SANS INDICATIF'}>
                   {flightProps.callsign || 'VOL SANS INDICATIF'}
                 </h3>
                 {flightProps.flight_type && (
@@ -131,12 +142,21 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
                   </span>
                 )}
                 {isEmergency && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse shrink-0">
-                    {emergencyLabel}
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse shrink-0 flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" /> {emergencyLabel}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5 flex-wrap min-w-0">
+
+              {/* Airline name badge */}
+              {airlineInfo && (
+                <div className="text-xs text-emerald-300 font-bold mt-1 flex items-center gap-1">
+                  <Building2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="truncate" title={airlineInfo.name}>{airlineInfo.name} {airlineInfo.flag}</span>
+                </div>
+              )}
+
+              <div className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap min-w-0">
                 <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="truncate max-w-[110px]" title={flightProps.origin_country}>{flightProps.origin_country}</span>
                 <span className="text-slate-600">•</span>
@@ -166,63 +186,63 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
         </div>
 
         {/* PROMINENT FLIGHT ROUTE CARD (DÉPART ➔ ARRIVÉE) */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 space-y-2 overflow-hidden min-w-0">
+        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-950/90 border border-emerald-500/40 shadow-inner space-y-2.5 overflow-hidden min-w-0">
           <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-between">
-            <span className="flex items-center gap-1 text-emerald-400 font-bold min-w-0 truncate">
-              <Plane className="w-3 h-3 text-emerald-400 shrink-0" /> Plan de Vol & Itinéraire
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold min-w-0 truncate">
+              <Plane className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Plan de Vol & Itinéraire
             </span>
-            <span className="font-mono bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300 shrink-0">
-              DIRECT
+            <span className="font-mono bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded text-emerald-300 font-extrabold text-[9px] shrink-0 animate-pulse">
+              EN DIRECT 🔴
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1 min-w-0">
+          <div className="flex items-start justify-between gap-3 pt-1 min-w-0">
             {/* Departure Airport */}
-            <div className="flex-1 min-w-0 space-y-0.5 overflow-hidden">
-              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
+            <div className="flex-1 min-w-0 space-y-1 overflow-hidden bg-slate-950/50 p-2.5 rounded-xl border border-cyan-500/20">
+              <div className="flex items-center gap-1 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
                 <PlaneTakeoff className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> DÉPART
               </div>
-              <div className="text-lg sm:text-xl font-black font-mono text-cyan-300 tracking-tight truncate" title={depIata}>
-                {depIata}
+              <div className="text-xl sm:text-2xl font-black font-mono text-cyan-300 tracking-tight leading-none truncate" title={depInfo.iata}>
+                {depInfo.iata}
               </div>
-              <div className="text-[11px] font-bold text-white truncate" title={depCity}>
-                {depCity}
+              <div className="text-[11px] font-extrabold text-white truncate" title={depInfo.city}>
+                {depInfo.city}
               </div>
-              <div className="text-[9.5px] text-slate-300 truncate" title={depName}>
-                {depName}
+              <div className="text-[9.5px] text-slate-300 font-medium truncate" title={depInfo.name}>
+                {depInfo.name}
               </div>
-              {depCountry && (
-                <div className="text-[9px] text-slate-400 font-mono truncate" title={depCountry}>
-                  {depCountry}
-                </div>
-              )}
+              <div className="text-[9px] text-slate-400 font-mono font-bold truncate" title={depInfo.country}>
+                {depInfo.country}
+              </div>
             </div>
 
-            {/* Flight Direction Arrow */}
-            <div className="flex flex-col items-center justify-center shrink-0 px-1">
-              <ArrowRight className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span className="text-[8px] font-mono text-slate-400 font-bold">VOL</span>
+            {/* Flight Direction Arrow Indicator */}
+            <div className="flex flex-col items-center justify-center shrink-0 pt-4 px-0.5">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-0.5 bg-emerald-500/60 rounded-full" />
+                <ArrowRight className="w-5 h-5 text-emerald-400 animate-pulse" />
+                <div className="w-2 h-0.5 bg-emerald-500/60 rounded-full" />
+              </div>
+              <span className="text-[8px] font-mono text-emerald-400 font-black tracking-wider uppercase mt-1">VOL DIRECT</span>
             </div>
 
             {/* Arrival Airport */}
-            <div className="flex-1 min-w-0 space-y-0.5 text-right overflow-hidden">
-              <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400 font-bold uppercase">
+            <div className="flex-1 min-w-0 space-y-1 text-right overflow-hidden bg-slate-950/50 p-2.5 rounded-xl border border-emerald-500/20">
+              <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
                 ARRIVÉE <PlaneLanding className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               </div>
-              <div className="text-lg sm:text-xl font-black font-mono text-emerald-300 tracking-tight truncate" title={arrIata}>
-                {arrIata}
+              <div className="text-xl sm:text-2xl font-black font-mono text-emerald-300 tracking-tight leading-none truncate" title={arrInfo.iata}>
+                {arrInfo.iata}
               </div>
-              <div className="text-[11px] font-bold text-white truncate" title={arrCity}>
-                {arrCity}
+              <div className="text-[11px] font-extrabold text-white truncate" title={arrInfo.city}>
+                {arrInfo.city}
               </div>
-              <div className="text-[9.5px] text-slate-300 truncate" title={arrName}>
-                {arrName}
+              <div className="text-[9.5px] text-slate-300 font-medium truncate" title={arrInfo.name}>
+                {arrInfo.name}
               </div>
-              {arrCountry && (
-                <div className="text-[9px] text-slate-400 font-mono truncate" title={arrCountry}>
-                  {arrCountry}
-                </div>
-              )}
+              <div className="text-[9px] text-slate-400 font-mono font-bold truncate" title={arrInfo.country}>
+                {arrInfo.country}
+              </div>
             </div>
           </div>
         </div>
@@ -291,7 +311,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
               <div className={`text-xs font-bold ${vertColor}`}>{vertStatus}</div>
             </div>
           </div>
-          <div className="text-[10px] font-mono font-bold text-slate-300 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
+          <div className="text-[10px] font-mono font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
             {flightProps.on_ground ? 'AU SOL 🛬' : 'EN VOL 🛫'}
           </div>
         </div>
@@ -316,7 +336,7 @@ export const FlightInspector: React.FC<FlightInspectorProps> = ({
           </button>
 
           <a
-            href={`https://opensky-network.org/aircraft-profile?icao24=${flightProps.icao24}`}
+            href={`https://globe.adsbexchange.com/?icao=${flightProps.icao24}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"

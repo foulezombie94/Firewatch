@@ -141,15 +141,19 @@ const createAirplaneImageData = (category: string = 'commercial', fillColor: str
 const isMapStyleReady = (map: mapboxgl.Map | null): boolean => {
   if (!map) return false;
   try {
-    return map.isStyleLoaded() && !!(map as any).style && !!(map as any).style._loaded;
+    const style = (map as any).style;
+    return map.isStyleLoaded() && !!style && !!style._loaded;
   } catch (e) {
     return false;
   }
 };
 
 const ensureAirplaneImage = (map: mapboxgl.Map) => {
-  if (!map || !isMapStyleReady(map)) return;
+  if (!map) return;
   try {
+    const style = (map as any).style;
+    if (!style) return;
+
     const icons = [
       { id: 'airplane-icon', category: 'commercial', fill: '#38bdf8', glow: '#0284c7' },           // Default Cyan
       { id: 'airplane-icon-commercial', category: 'commercial', fill: '#38bdf8', glow: '#0284c7' },// Cyan Blue ✈️
@@ -159,10 +163,12 @@ const ensureAirplaneImage = (map: mapboxgl.Map) => {
     ];
 
     for (const ico of icons) {
-      if (!map.hasImage(ico.id)) {
-        const imgData = createAirplaneImageData(ico.category, ico.fill, ico.glow);
-        map.addImage(ico.id, { width: 48, height: 48, data: imgData.data }, { pixelRatio: 2 });
-      }
+      try {
+        if (!map.hasImage(ico.id)) {
+          const imgData = createAirplaneImageData(ico.category, ico.fill, ico.glow);
+          map.addImage(ico.id, { width: 48, height: 48, data: imgData.data }, { pixelRatio: 2 });
+        }
+      } catch (err) {}
     }
   } catch (e) {}
 };
@@ -424,7 +430,7 @@ export const Map: React.FC<MapProps> = ({
     } catch (err) {}
 
     map.on('styleimagemissing', (e) => {
-      if (e.id === 'airplane-icon') {
+      if (e.id && (e.id.startsWith('airplane-icon') || e.id.includes('airplane'))) {
         ensureAirplaneImage(map);
       }
     });
@@ -859,7 +865,7 @@ export const Map: React.FC<MapProps> = ({
         });
       }
 
-      // 3. OpenSky REST API Flights Source & Symbol Layer
+      // 3. ADSB Live Radar Flights Source & Symbol Layer
       if (!map.getSource('flights-source')) {
         map.addSource('flights-source', {
           type: 'geojson',

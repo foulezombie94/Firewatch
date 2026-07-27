@@ -43,6 +43,24 @@ describe('🔥 Firewatch Backend Automated Test Suite', () => {
       expect(info.country).toBeDefined();
     });
 
+    it('should resolve IATA code ACE (Lanzarote) correctly', () => {
+      const info = resolveAirportInfo('ACE');
+      expect(info).toBeDefined();
+      expect(info.iata).toBe('ACE');
+      expect(info.icao).toBe('GCRR');
+      expect(info.name).toContain('Lanzarote');
+      expect(info.country).toContain('Espagne');
+    });
+
+    it('should resolve IATA code BHX (Birmingham) correctly', () => {
+      const info = resolveAirportInfo('BHX');
+      expect(info).toBeDefined();
+      expect(info.iata).toBe('BHX');
+      expect(info.icao).toBe('EGBB');
+      expect(info.name).toContain('Birmingham');
+      expect(info.country).toContain('Royaume-Uni');
+    });
+
     it('should return null for empty or null ICAO code', () => {
       expect(resolveAirportInfo(null)).toBeNull();
       expect(resolveAirportInfo('')).toBeNull();
@@ -149,10 +167,10 @@ describe('🔥 Firewatch Backend Automated Test Suite', () => {
       expect(Array.isArray(res.body.features)).toBe(true);
     });
 
-    it('GET /api/flights doit survivre si OpenSky Network est en panne totale', async () => {
+    it('GET /api/flights doit survivre si le réseau radar ADSB est en panne totale', async () => {
       // Mock: fetch rejette complètement (réseau HS, DNS fail, etc.)
       globalThis.fetch = vi.fn(() =>
-        Promise.reject(new Error('Network Error: OpenSky unreachable'))
+        Promise.reject(new Error('Network Error: ADSB network unreachable'))
       );
 
       const res = await request(app).get('/api/flights');

@@ -126,7 +126,7 @@ let globalAirportsDb = {};
 let globalAirportsIataDb = {};
 
 const COUNTRY_FLAGS = {
-  FR: 'France 🇫🇷', US: 'États-Unis 🇺🇸', MA: 'Maroc 🇲🇦', DZ: 'Algérie 🇩🇿', TN: 'Tunisie 🇹🇳',
+  FR: 'France 🇫🇷', US: 'États-Unis 🇺🇸', MA: 'Maroc 🇲🇦', DZ: 'Algérie 🇩ℤ', TN: 'Tunisie 🇹🇳',
   ES: 'Espagne 🇪🇸', PT: 'Portugal 🇵🇹', GB: 'Royaume-Uni 🇬🇧', DE: 'Allemagne 🇩🇪', IT: 'Italie 🇮🇹',
   NL: 'Pays-Bas 🇳🇱', BE: 'Belgique 🇧🇪', CH: 'Suisse 🇨🇭', AT: 'Autriche 🇦🇹', SE: 'Suède 🇸🇪',
   NO: 'Norvège 🇳🇴', FI: 'Finlande 🇫🇮', DK: 'Danemark 🇩🇰', IE: 'Irlande 🇮🇪', GR: 'Grèce 🇬🇷',
@@ -145,8 +145,21 @@ function indexAirportsByIata() {
   }
 }
 
+// Synchronously initialize global airports DB from disk cache if available
+if (fs.existsSync(GLOBAL_AIRPORTS_FILE)) {
+  try {
+    const content = fs.readFileSync(GLOBAL_AIRPORTS_FILE, 'utf8');
+    globalAirportsDb = JSON.parse(content);
+    indexAirportsByIata();
+    logger.info({ count: Object.keys(globalAirportsDb).length, iataCount: Object.keys(globalAirportsIataDb).length }, '[Airports DB] Pre-warmed global airports from local disk cache.');
+  } catch (e) {
+    logger.warn({ err: e.message }, '[Airports DB] Pre-warm disk cache read failed.');
+  }
+}
+
 // Load 29,300+ Global Airports Database
 async function loadGlobalAirportsDb() {
+  if (Object.keys(globalAirportsDb).length > 0) return;
   if (fs.existsSync(GLOBAL_AIRPORTS_FILE)) {
     try {
       const content = fs.readFileSync(GLOBAL_AIRPORTS_FILE, 'utf8');
@@ -638,7 +651,8 @@ function getAircraftCategory(a) {
   };
 }
 
-async function fetchOpenSkyFlights() {
+async function fetchAdsbFlights() {
+  const adsbTimeout = setTimeout(() => {}, 5000);
   try {
     // 13-zone full planet Earth grid matrix + Military feed
     const regionUrls = [
@@ -784,66 +798,7 @@ async function resolveFlightRouteAirports(a, category, callsign) {
       return saveAndCacheFlights(flightFeatures);
     }
   } catch (err) {
-    clearTimeout(adsbTimeout);
-    logger.debug({ err: err.message }, 'ADSB.lol fetch failed or timed out, trying OpenSky fallback...');
-  }
-
-  // 2. OpenSky Network API (Secondary fallback if ADSB.lol is unavailable)
-  const openSkyController = new AbortController();
-  const openSkyTimeout = setTimeout(() => openSkyController.abort(), 4000);
-
-  try {
-    const statesRes = await fetch('https://opensky-network.org/api/states/all', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
-      signal: openSkyController.signal
-    });
-    clearTimeout(openSkyTimeout);
-
-    if (statesRes.ok) {
-      const data = await statesRes.json();
-      const rawStates = data.states || [];
-      const flightFeatures = [];
-
-      for (const s of rawStates) {
-        const lon = s[5];
-        const lat = s[6];
-        if (lon === null || lat === null || isNaN(lon) || isNaN(lat)) continue;
-
-        const originCountry = s[2] || 'International';
-        flightFeatures.push({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [lon, lat] },
-          properties: {
-            icao24: s[0],
-            callsign: (s[1] || 'N/A').trim(),
-            origin_country: originCountry,
-            altitude_m: Math.round(s[7] || s[13] || 0),
-            altitude_ft: Math.round((s[7] || s[13] || 0) * 3.28084),
-            velocity_kmh: Math.round((s[9] || 0) * 3.6),
-            heading: Math.round(s[10] || 0),
-            vertical_rate: s[11] || 0,
-            on_ground: s[8] || false,
-            squawk: s[14] || 'N/A',
-            dep_iata: 'DEP',
-            dep_name: `Aéroport (${originCountry})`,
-            dep_city: originCountry,
-            dep_country: originCountry,
-            arr_iata: 'ARR',
-            arr_name: 'Trajectoire Internationale',
-            arr_city: 'En Vol',
-            arr_country: 'International'
-          }
-        });
-      }
-
-      if (flightFeatures.length > 0) {
-        logger.info({ count: flightFeatures.length }, '✈️ OpenSky REST API active aircraft synced to cache.');
-        return saveAndCacheFlights(flightFeatures);
-      }
-    }
-  } catch (err) {
-    clearTimeout(openSkyTimeout);
-    logger.error({ err: err.message, stack: err.stack }, '❌ [Vercel Log Error] Exception processing flights');
+    logger.debug({ err: err.message }, 'ADSB fetch failed or timed out.');
   }
 
   return flightsMemoryCache.geoJson || { type: 'FeatureCollection', features: [] };
@@ -884,7 +839,7 @@ if (process.env.NODE_ENV !== 'test') {
   }, TWO_HOURS_MS);
 
   setInterval(() => {
-    fetchOpenSkyFlights().catch(e => logger.error({ err: e.message }, 'Background OpenSky sync error'));
+    fetchAdsbFlights().catch(e => logger.error({ err: e.message }, 'Background ADSB sync error'));
   }, TWO_MINUTES_MS);
 }
 
@@ -1069,7 +1024,7 @@ app.get('/api/geocode', async (req, res) => {
 app.get('/api/flights', async (req, res) => {
   try {
     // 100% Direct Live Fetch (No Server Cache, Zero Rate Limits on ADSB)
-    const data = await fetchOpenSkyFlights();
+    const data = await fetchAdsbFlights();
     const count = data.features ? data.features.length : 0;
 
     if (count === 0) {
@@ -1084,7 +1039,7 @@ app.get('/api/flights', async (req, res) => {
   } catch (err) {
     logger.error({ endpoint: '/api/flights', err: err.message, stack: err.stack }, '❌ [Vercel Console Error] Échec du traitement /api/flights');
     const errorMsg = process.env.NODE_ENV === 'production' ? undefined : err.message;
-    res.status(500).json({ error: 'Failed to fetch OpenSky flights', message: errorMsg });
+    res.status(500).json({ error: 'Failed to fetch live flight radar data', message: errorMsg });
   }
 });
 
@@ -1122,6 +1077,6 @@ if (process.env.NODE_ENV !== 'test') {
     loadOpenFlightsAirlines().catch(e => logger.debug({ err: e.message }, 'Initial airlines DB load failed'));
     getOrUpdateData().catch(e => logger.error({ err: e.message }, 'Initial NASA FIRMS sync failed'));
     fetchUsgsEarthquakes().catch(e => logger.error({ err: e.message }, 'Initial USGS sync failed'));
-    fetchOpenSkyFlights().catch(e => logger.error({ err: e.message }, 'Initial OpenSky sync failed'));
+    fetchAdsbFlights().catch(e => logger.error({ err: e.message }, 'Initial ADSB sync failed'));
   });
 }
