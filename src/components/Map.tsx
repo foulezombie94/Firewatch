@@ -29,8 +29,8 @@ const STYLE_URLS: Record<MapStyleKey, string> = {
   outdoors: 'mapbox://styles/mapbox/outdoors-v12',
 };
 
-// Synchronously generate high-resolution category-colored airplane vector icons for Mapbox
-const createAirplaneImageData = (fillColor: string = '#38bdf8', glowColor: string = '#0284c7'): ImageData => {
+// Synchronously generate high-resolution category-specific airplane & helicopter vector icons for Mapbox
+const createAirplaneImageData = (category: string = 'commercial', fillColor: string = '#38bdf8', glowColor: string = '#0284c7'): ImageData => {
   const canvas = document.createElement('canvas');
   canvas.width = 48;
   canvas.height = 48;
@@ -43,16 +43,84 @@ const createAirplaneImageData = (fillColor: string = '#38bdf8', glowColor: strin
   
   // Neon glow background
   ctx.shadowColor = glowColor;
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = 10;
 
   ctx.fillStyle = fillColor;
-  ctx.strokeStyle = '#020617';
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#090d16';
+  ctx.lineWidth = 2;
   ctx.lineJoin = 'round';
 
-  const path = new Path2D('M 0 -18 L 4 -4 L 18 2 L 18 6 L 4 2 L 2 14 L 6 18 L 6 21 L 0 19 L -6 21 L -6 18 L -2 14 L -4 2 L -18 6 L -18 2 L -4 -4 Z');
-  ctx.fill(path);
-  ctx.stroke(path);
+  let pathString = '';
+
+  if (category === 'military') {
+    // 🎖️ Sharp Delta-Wing Fighter Jet (F-22 / Rafale / Eurofighter style)
+    pathString = 'M 0 -21 L 2 -12 L 3 -8 L 18 5 L 18 8 L 15 8 L 4 10 L 4 15 L 9 19 L 9 21 L 3 20 L 2.5 21 L 0 19 L -2.5 21 L -3 20 L -9 21 L -9 19 L -4 15 L -4 10 L -15 8 L -18 8 L -18 5 L -3 -8 L -2 -12 Z';
+    const path = new Path2D(pathString);
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    // Inner cockpit canopy accent
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(0, -11, 1.5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (category === 'private') {
+    // 🛩️ Executive Business Jet (T-Tail & Winglets style)
+    pathString = 'M 0 -21 C 1 -18 2 -10 2 -3 L 16 3 L 16 1 L 17 2 L 16 6 L 2 7 L 2 12 L 3.5 13 L 3.5 16 L 2 16 L 7 19 L 7 21 L 0 19.5 L -7 21 L -7 19 L -2 16 L -3.5 16 L -3.5 13 L -2 12 L -2 7 L -16 6 L -17 2 L -16 1 L -16 3 L -2 -3 C -2 -10 -1 -18 0 -21 Z';
+    const path = new Path2D(pathString);
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    // Engine pod accents
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-3.5, 13, 1.2, 3);
+    ctx.fillRect(2.3, 13, 1.2, 3);
+
+  } else if (category === 'emergency') {
+    // 🚁 Rescue Helicopter (Main Rotor Disc + Teardrop Cockpit + Glass Windshield)
+    pathString = 'M 0 -16 C 5 -16 6.5 -10 6.5 -3 C 6.5 3 4.5 7 2 15 L 2 19 L 4.5 19 L 4.5 21 L 0 20 L -4.5 21 L -4.5 19 L -2 19 L -2 15 C -4.5 7 -6.5 3 -6.5 -3 C -6.5 -10 -5 -16 0 -16 Z';
+    const path = new Path2D(pathString);
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    // Large Main Rotor Disc (spanning across top)
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = '#090d16';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(-20, -5, 40, 2.5);
+    ctx.fill();
+    ctx.stroke();
+
+    // Rotor Hub Center Node
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, -3.7, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glass Windshield
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(0, -11, 3.5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else {
+    // ✈️ Commercial Airliner (A320 / B737 Jet with engines under wings)
+    pathString = 'M 0 -20 C 1.2 -18 2.5 -12 2.5 -4 L 19 4 L 19 7 L 2.5 5.5 L 2.5 14 L 8 18 L 8 20.5 L 0 19 L -8 20.5 L -8 18 L -2.5 14 L -2.5 5.5 L -19 7 L -19 4 L -2.5 -4 C -2.5 -12 -1.2 -18 0 -20 Z';
+    const path = new Path2D(pathString);
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    // Jet Engine Nacelles under wings
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-7.5, 3, 2, 4);
+    ctx.fillRect(5.5, 3, 2, 4);
+  }
 
   ctx.restore();
 
@@ -73,16 +141,16 @@ const ensureAirplaneImage = (map: mapboxgl.Map) => {
   if (!map || !isMapStyleReady(map)) return;
   try {
     const icons = [
-      { id: 'airplane-icon', fill: '#38bdf8', glow: '#0284c7' },           // Default Cyan
-      { id: 'airplane-icon-commercial', fill: '#38bdf8', glow: '#0284c7' },// Cyan Blue ✈️
-      { id: 'airplane-icon-military', fill: '#ef4444', glow: '#dc2626' },  // Neon Red 🎖️
-      { id: 'airplane-icon-private', fill: '#c084fc', glow: '#a855f7' },   // Purple 🛩️
-      { id: 'airplane-icon-emergency', fill: '#fbbf24', glow: '#f59e0b' }  // Amber Orange 🚁
+      { id: 'airplane-icon', category: 'commercial', fill: '#38bdf8', glow: '#0284c7' },           // Default Cyan
+      { id: 'airplane-icon-commercial', category: 'commercial', fill: '#38bdf8', glow: '#0284c7' },// Cyan Blue ✈️
+      { id: 'airplane-icon-military', category: 'military', fill: '#ef4444', glow: '#dc2626' },    // Neon Red 🎖️
+      { id: 'airplane-icon-private', category: 'private', fill: '#c084fc', glow: '#a855f7' },      // Purple 🛩️
+      { id: 'airplane-icon-emergency', category: 'emergency', fill: '#fbbf24', glow: '#f59e0b' }   // Amber Orange 🚁
     ];
 
     for (const ico of icons) {
       if (!map.hasImage(ico.id)) {
-        const imgData = createAirplaneImageData(ico.fill, ico.glow);
+        const imgData = createAirplaneImageData(ico.category, ico.fill, ico.glow);
         map.addImage(ico.id, { width: 48, height: 48, data: imgData.data }, { pixelRatio: 2 });
       }
     }
