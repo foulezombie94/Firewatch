@@ -28,6 +28,7 @@ const AIRLINE_DATABASE: Record<string, { name: string; flag: string }> = {
   TRA: { name: 'Transavia Netherlands', flag: '🇳🇱' },
   RAM: { name: 'Royal Air Maroc', flag: '🇲🇦' },
   DAH: { name: 'Air Algérie', flag: '🇩🇿' },
+  DTH: { name: 'Tassili Airlines', flag: '🇩🇿' },
   TAR: { name: 'Tunisair', flag: '🇹🇳' },
   IBE: { name: 'Iberia', flag: '🇪🇸' },
   TAP: { name: 'TAP Air Portugal', flag: '🇵🇹' },

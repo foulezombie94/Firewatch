@@ -194,7 +194,7 @@ const AIRLINES_CACHE_FILE = path.join(CACHE_DIR, 'airlines_cache.json');
 const ICAO_TO_IATA_AIRLINES = {
   AFR: 'AF', BAW: 'BA', DLH: 'LH', UAE: 'EK', DAL: 'DL', UAL: 'UA', AAL: 'AA',
   EZY: 'U2', EZS: 'U2', RYR: 'FR', RYN: 'FR', TVF: 'TO', RAM: 'AT', DAH: 'AH',
-  TAR: 'TU', IBE: 'IB', TAP: 'TP', KLM: 'KL', SWR: 'LX', THY: 'TK', QFA: 'QF',
+  DTH: 'SF', TAR: 'TU', IBE: 'IB', TAP: 'TP', KLM: 'KL', SWR: 'LX', THY: 'TK', QFA: 'QF',
   JAL: 'JL', ANA: 'NH', CPA: 'CX', SIA: 'SQ', SWA: 'WN', AZA: 'AZ', ITY: 'AZ',
   FIN: 'AY', SAS: 'SK', WZZ: 'W6', NAX: 'DY', FDB: 'FZ', QTR: 'QR', ETD: 'EY',
   MSR: 'MS', MEA: 'ME', RJA: 'RJ', SVA: 'SV', OAL: 'OA', AEE: 'A3', CSA: 'OK',
