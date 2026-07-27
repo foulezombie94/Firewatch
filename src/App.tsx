@@ -495,6 +495,7 @@ export const App: React.FC = () => {
       {/* Active Aircraft Detail Inspector Modal */}
       {inspectedFlight && (
         <FlightInspector
+          key={inspectedFlight.feature.properties.icao24 || inspectedFlight.feature.properties.callsign || inspectedFlight.coords.join(',')}
           flightProps={inspectedFlight.feature.properties}
           coordinates={inspectedFlight.coords}
           onClose={() => setInspectedFlight(null)}
