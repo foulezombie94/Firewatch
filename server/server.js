@@ -134,6 +134,8 @@ const COUNTRY_FLAGS = {
   CA: 'Canada 🇨🇦', BR: 'Brésil 🇧🇷', AU: 'Australie 🇦🇺', SG: 'Singapour 🇸🇬', MX: 'Mexique 🇲🇽'
 };
 
+let cachedMajorAirports = [];
+
 function indexAirportsByIata() {
   globalAirportsIataDb = {};
   for (const [icaoKey, info] of Object.entries(globalAirportsDb)) {
@@ -143,6 +145,7 @@ function indexAirportsByIata() {
       globalAirportsIataDb[info.iata.trim().toUpperCase()] = info;
     }
   }
+  cachedMajorAirports = Object.values(globalAirportsDb).filter(a => a.iata && a.iata.length === 3 && a.lat && a.lon);
 }
 
 // Synchronously initialize global airports DB from disk cache if available
@@ -290,13 +293,18 @@ function distanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function inferRouteKinematic(lat, lon, heading) {
-  if (!globalAirportsDb) return { dep: 'DEP', arr: 'ARR' };
-  const majorAirports = Object.values(globalAirportsDb).filter(a => a.iata && a.iata.length === 3 && a.lat && a.lon);
+  if (!cachedMajorAirports || cachedMajorAirports.length === 0) {
+    if (globalAirportsDb && Object.keys(globalAirportsDb).length > 0) {
+      cachedMajorAirports = Object.values(globalAirportsDb).filter(a => a.iata && a.iata.length === 3 && a.lat && a.lon);
+    } else {
+      return { dep: 'DEP', arr: 'ARR' };
+    }
+  }
   let bestDep = null, bestArr = null, minDepDist = Infinity, minArrDist = Infinity;
   const radLat = lat * Math.PI / 180;
   const radLon = lon * Math.PI / 180;
 
-  for (const ap of majorAirports) {
+  for (const ap of cachedMajorAirports) {
     const d = distanceKm(lat, lon, ap.lat, ap.lon);
     if (d > 4000) continue;
     const apRadLon = ap.lon * Math.PI / 180;
@@ -693,7 +701,17 @@ async function fetchAdsbFlights() {
       }
     }
 
+const flightRouteCache = new LRUCache({
+  max: 10000,
+  ttl: 2 * 60 * 60 * 1000 // 2 Hours TTL
+});
+
 async function resolveFlightRouteAirports(a, category, callsign) {
+  const cs = (callsign || '').trim().toUpperCase();
+  if (cs && cs !== 'N/A' && flightRouteCache.has(cs)) {
+    return flightRouteCache.get(cs);
+  }
+
   const routes = await loadOpenFlightsRoutes();
   const airlinesMap = await loadOpenFlightsAirlines();
   const lat = a.lat;
@@ -704,7 +722,6 @@ async function resolveFlightRouteAirports(a, category, callsign) {
   let arrCode = a.dest_icao || a.dest || a.arr || null;
 
   if (!depCode || !arrCode) {
-    const cs = (callsign || '').trim().toUpperCase();
     if (cs && cs !== 'N/A') {
       const icaoPrefix = cs.substring(0, 3);
       const iataCode = airlinesMap[icaoPrefix] || cs.substring(0, 2);
@@ -744,7 +761,12 @@ async function resolveFlightRouteAirports(a, category, callsign) {
   const depInfo = resolveAirportInfo(depCode) || { iata: 'DEP', name: 'Aéroport de Départ', city: 'Départ', country: 'International 🌐' };
   const arrInfo = resolveAirportInfo(arrCode) || { iata: 'ARR', name: 'Aéroport d\'Arrivée', city: 'Arrivée', country: 'International 🌐' };
 
-  return { depInfo, arrInfo };
+  const result = { depInfo, arrInfo };
+  if (cs && cs !== 'N/A') {
+    flightRouteCache.set(cs, result);
+  }
+
+  return result;
 }
 
     if (acMap.size > 0) {
