@@ -79,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { label: '6h', value: 6 },
     { label: '12h', value: 12 },
     { label: '24h', value: 24 },
-    { label: '48h', value: 48 },
   ];
 
   const projections = [
@@ -309,7 +308,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {filters.hours}h
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-1.5 p-1 bg-[#14171d] rounded-xl border border-[#21252d]">
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#14171d] rounded-xl border border-[#21252d]">
                   {timeOptions.map((opt) => (
                     <button
                       key={opt.value}

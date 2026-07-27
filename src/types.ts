@@ -122,7 +122,7 @@ export type MapProjectionKey = 'globe' | 'mercator' | 'winkelTripel';
 export type LayerModeKey = 'all' | 'fires' | 'earthquakes' | 'flights';
 
 export interface FilterState {
-  hours: number; // 6, 12, 24, 48
+  hours: number; // 6, 12, 24
   minFrp: number; // 0..150
   sensor: 'all' | 'viirs' | 'modis';
   confidence: 'all' | 'high';

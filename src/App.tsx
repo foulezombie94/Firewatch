@@ -109,7 +109,7 @@ export const App: React.FC = () => {
     setServiceStatus({ fires: 'loading', earthquakes: 'loading', flights: 'loading' });
 
     // 1. 🔥 NASA FIRMS — Fires (Primary Data Source)
-    const fetchFires = fetch('/api/fires?hours=48&min_frp=0&sensor=all')
+    const fetchFires = fetch('/api/fires?hours=24&min_frp=0&sensor=all')
       .then(async (res) => {
         if (!res.ok) throw new Error('Fires error');
         const data: FireGeoJSON = await res.json();
@@ -182,7 +182,7 @@ export const App: React.FC = () => {
     if (allFeatures.length === 0) return rawFiresData;
 
     // Fast-path: if default filters are selected, return rawFiresData directly in O(1) without filtering 200k items!
-    if (filters.hours >= 48 && filters.minFrp === 0 && filters.sensor === 'all' && filters.confidence === 'all') {
+    if (filters.hours >= 24 && filters.minFrp === 0 && filters.sensor === 'all' && filters.confidence === 'all') {
       return rawFiresData;
     }
 
