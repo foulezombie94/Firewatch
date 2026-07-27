@@ -254,65 +254,77 @@ export const Map: React.FC<MapProps> = ({
     flightStateRef.current = newMap;
   }, [flightsGeoJson]);
 
-  // 60 FPS Continuous Smooth Flight Animation Engine (Dead-Reckoning Physics)
+  // 30 FPS Mobile-Optimized Flight Animation Engine (Battery & GPU Saver)
   useEffect(() => {
     let animFrameId: number;
+    let lastAnimTime = 0;
+    const FRAME_INTERVAL_MS = 33; // ~30 FPS: Reduces GPU/CPU WebGL load by 50% while maintaining silky movement
 
-    const animateFlights = () => {
-      const map = mapRef.current;
-      if (map && isMapStyleReady(map)) {
-        const flightSrc = map.getSource('flights-source') as mapboxgl.GeoJSONSource;
-        if (flightSrc && flightStateRef.current.size > 0) {
-          const now = Date.now();
-          const animatedFeatures: any[] = [];
+    const animateFlights = (timestamp: number) => {
+      // 1. Sleep when tab is in background (saves 100% CPU/battery when phone is locked or tab inactive)
+      if (document.hidden) {
+        animFrameId = requestAnimationFrame(animateFlights);
+        return;
+      }
 
-          // Get visible screen bounds to ONLY animate planes in viewport (+ margin)
-          let bounds: mapboxgl.LngLatBounds | null = null;
-          try {
-            bounds = map.getBounds();
-          } catch (e) {}
+      // 2. Throttle WebGL buffer updates to ~30 FPS
+      if (timestamp - lastAnimTime >= FRAME_INTERVAL_MS) {
+        lastAnimTime = timestamp;
+        const map = mapRef.current;
+        if (map && isMapStyleReady(map)) {
+          const flightSrc = map.getSource('flights-source') as mapboxgl.GeoJSONSource;
+          if (flightSrc && flightStateRef.current.size > 0) {
+            const now = Date.now();
+            const animatedFeatures: any[] = [];
 
-          for (const state of flightStateRef.current.values()) {
-            const elapsedSec = (now - state.updateTime) / 1000;
-            const clampedSec = Math.min(elapsedSec, 25);
+            // Get visible screen bounds to ONLY animate planes in viewport (+ margin)
+            let bounds: mapboxgl.LngLatBounds | null = null;
+            try {
+              bounds = map.getBounds();
+            } catch (e) {}
 
-            // Viewport culling: skip heavy math for planes far off-screen
-            if (bounds) {
-              const west = bounds.getWest() - 5;
-              const east = bounds.getEast() + 5;
-              const south = bounds.getSouth() - 5;
-              const north = bounds.getNorth() + 5;
+            for (const state of flightStateRef.current.values()) {
+              const elapsedSec = (now - state.updateTime) / 1000;
+              const clampedSec = Math.min(elapsedSec, 25);
 
-              if (state.startLon < west || state.startLon > east || state.startLat < south || state.startLat > north) {
-                animatedFeatures.push(state.feature);
-                continue;
+              // Viewport culling: skip heavy math for planes far off-screen
+              if (bounds) {
+                const west = bounds.getWest() - 5;
+                const east = bounds.getEast() + 5;
+                const south = bounds.getSouth() - 5;
+                const north = bounds.getNorth() + 5;
+
+                if (state.startLon < west || state.startLon > east || state.startLat < south || state.startLat > north) {
+                  animatedFeatures.push(state.feature);
+                  continue;
+                }
               }
+
+              // Distance in km = (speed in km/h / 3600) * seconds
+              const distKm = (state.velocityKmh / 3600) * clampedSec;
+              const headingRad = (state.heading * Math.PI) / 180;
+
+              // Dead reckoning GPS coordinates calculation
+              const dLat = (distKm * Math.cos(headingRad)) / 111.12;
+              const cosLat = Math.cos((state.startLat * Math.PI) / 180);
+              const dLon = (distKm * Math.sin(headingRad)) / (111.12 * (Math.abs(cosLat) < 0.01 ? 1 : cosLat));
+
+              animatedFeatures.push({
+                ...state.feature,
+                geometry: {
+                  type: 'Point',
+                  coordinates: [state.startLon + dLon, state.startLat + dLat]
+                }
+              });
             }
 
-            // Distance in km = (speed in km/h / 3600) * seconds
-            const distKm = (state.velocityKmh / 3600) * clampedSec;
-            const headingRad = (state.heading * Math.PI) / 180;
-
-            // Dead reckoning GPS coordinates calculation
-            const dLat = (distKm * Math.cos(headingRad)) / 111.12;
-            const cosLat = Math.cos((state.startLat * Math.PI) / 180);
-            const dLon = (distKm * Math.sin(headingRad)) / (111.12 * (Math.abs(cosLat) < 0.01 ? 1 : cosLat));
-
-            animatedFeatures.push({
-              ...state.feature,
-              geometry: {
-                type: 'Point',
-                coordinates: [state.startLon + dLon, state.startLat + dLat]
-              }
-            });
+            try {
+              flightSrc.setData({
+                type: 'FeatureCollection',
+                features: animatedFeatures
+              } as any);
+            } catch (e) {}
           }
-
-          try {
-            flightSrc.setData({
-              type: 'FeatureCollection',
-              features: animatedFeatures
-            } as any);
-          } catch (e) {}
         }
       }
 
